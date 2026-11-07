@@ -1,0 +1,19 @@
+version: "2"
+run:
+  timeout: 5m
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - bodyclose
+    - errorlint
+    - nilerr
+    - nolintlint
+  settings:
+    nolintlint:
+      require-explanation: true
+      require-specific: true
