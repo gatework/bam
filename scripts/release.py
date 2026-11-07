@@ -16,8 +16,13 @@ def gh(*args):
     return subprocess.check_output(["gh", *args])
 
 
-def api(path):
-    return json.loads(gh("api", path))
+def api(path, body=None):
+    if body is None:
+        return json.loads(gh("api", path))
+    return json.loads(subprocess.check_output(
+        ["gh", "api", path, "--method", "POST", "--input", "-"],
+        input=json.dumps(body).encode(),
+    ))
 
 
 root = pathlib.Path(__file__).resolve().parents[1]
@@ -73,14 +78,16 @@ with tempfile.TemporaryDirectory(prefix="bam-release-") as directory:
     releases = api(f"repos/{repo}/releases?per_page=100")
     release = next((r for r in releases if r["tag_name"] == tag), None)
     if release is None:
-        notes = work / "notes.md"
-        notes.write_text(
+        notes = (
             (root / "CHANGELOG.md").read_text().split(f"## {tag}\n", 1)[1].split("\n## ", 1)[0].strip()
             + f"\n\nCommit: `{revision}`\n\nCI: {run['html_url']}\n\nSource artifact ID: `{artifact['id']}`\n"
         )
-        gh("release", "create", tag, "--repo", repo, "--verify-tag", "--draft", "--title", tag,
-           "--target", revision, "--notes-file", str(notes))
-        release = api(f"repos/{repo}/releases/tags/{tag}")
+        # The by-tag endpoint does not expose a draft. Keep the creation response
+        # instead of treating a successful draft creation as an HTTP 404 failure.
+        release = api(f"repos/{repo}/releases", {
+            "tag_name": tag, "target_commitish": revision, "name": tag,
+            "body": notes, "draft": True, "prerelease": False,
+        })
     if release["draft"]:
         existing_names = {a["name"] for a in release["assets"]}
         if existing_names - expected_assets:
