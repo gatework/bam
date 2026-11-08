@@ -209,7 +209,7 @@ func TestCreateExactAddress(t *testing.T) {
 					http.Error(w, "bad request body", http.StatusBadRequest)
 					return
 				}
-				if body["type"] != tt.kind || body["address"] != tt.address || body["state"] != "RESERVED" {
+				if body["type"] != tt.kind || body["address"] != tt.address || body["state"] != "STATIC" {
 					t.Errorf("body = %#v", body)
 				}
 				body["id"] = 42
@@ -220,11 +220,11 @@ func TestCreateExactAddress(t *testing.T) {
 				}
 			})
 			address := netip.MustParseAddr(tt.address)
-			got, err := client.Addresses(30).Create(context.Background(), ipam.AddressSpec{Address: address, State: ipam.StateReserved})
+			got, err := client.Addresses(30).Create(context.Background(), ipam.AddressSpec{Address: address, State: ipam.StateStatic})
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got.ID != 42 || got.Address != address || got.State != ipam.StateReserved {
+			if got.ID != 42 || got.Address != address || got.State != ipam.StateStatic {
 				t.Errorf("address = %+v", got)
 			}
 			if got := requests.Load(); got != 1 {

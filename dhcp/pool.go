@@ -1,0 +1,90 @@
+package dhcp
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"strings"
+
+	"github.com/gatework/bam"
+	"github.com/gatework/bam/internal/resource"
+	"github.com/gatework/bam/ipam"
+)
+
+// MACPool groups MAC addresses for DHCP policy. New pools disable instant
+// deployment; updates preserve the appliance setting unless explicitly changed.
+type MACPool struct {
+	bam.Resource
+	Configuration            bam.Reference `json:"configuration"`
+	InstantDeploymentEnabled bool          `json:"instantDeploymentEnabled"`
+}
+
+type MACPoolSpec struct {
+	Name string `json:"name"`
+}
+
+func (s MACPoolSpec) MarshalJSON() ([]byte, error) {
+	if strings.TrimSpace(s.Name) == "" {
+		return nil, fmt.Errorf("dhcp: mac pool name is required")
+	}
+	return json.Marshal(struct {
+		Type    string `json:"type"`
+		Name    string `json:"name"`
+		Instant bool   `json:"instantDeploymentEnabled"`
+	}{"MACPool", s.Name, false})
+}
+
+type MACPoolChanges struct {
+	Name                     bam.Field[string]
+	InstantDeploymentEnabled bam.Field[bool]
+}
+
+func (c MACPoolChanges) Apply(d bam.Document) error {
+	if c.Name.IsNull() {
+		return fmt.Errorf("dhcp: mac pool name cannot be cleared")
+	}
+	if name, ok := c.Name.Value(); ok && strings.TrimSpace(name) == "" {
+		return fmt.Errorf("dhcp: mac pool name is required")
+	}
+	if c.InstantDeploymentEnabled.IsNull() {
+		return fmt.Errorf("dhcp: instant deployment setting cannot be null")
+	}
+	return errors.Join(c.Name.Apply(d, "name"), c.InstantDeploymentEnabled.Apply(d, "instantDeploymentEnabled"))
+}
+
+type MACPools struct {
+	resource.Collection[MACPool, MACPoolSpec, MACPoolChanges]
+}
+type MACPoolItems struct {
+	resource.Items[MACPool, MACPoolChanges]
+}
+
+// MACMembers exposes relationship operations. Unlink never deletes a MAC resource.
+type MACMembers struct{ resource.List[ipam.MACAddress] }
+
+func (m MACMembers) Get(ctx context.Context, id int64) (ipam.MACAddress, error) {
+	return resource.CollectionOf(m.List).Get(ctx, id)
+}
+func (m MACMembers) Link(ctx context.Context, macID int64, options ...bam.WriteOption) (ipam.MACAddress, error) {
+	if macID <= 0 {
+		return ipam.MACAddress{}, fmt.Errorf("dhcp: mac resource id must be positive")
+	}
+	member, err := resource.CollectionOf(m.List).Create(ctx, struct {
+		Type string `json:"type"`
+		ID   int64  `json:"id"`
+	}{"MACAddress", macID}, options...)
+	if err != nil {
+		return ipam.MACAddress{}, err
+	}
+	if member.ID != macID || member.Type != "MACAddress" {
+		return ipam.MACAddress{}, &bam.ProtocolError{
+			Method: http.MethodPost, Detail: "pool membership response does not match the requested mac address",
+		}
+	}
+	return member, nil
+}
+func (m MACMembers) Unlink(ctx context.Context, macID int64, options ...bam.WriteOption) error {
+	return resource.CollectionOf(m.List).Delete(ctx, macID, options...)
+}

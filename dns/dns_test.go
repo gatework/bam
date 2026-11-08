@@ -116,8 +116,9 @@ func TestClientRecordUsesGlobalItemPath(t *testing.T) {
 	if record.ID != 44 || record.AbsoluteName != "www.example.test" || record.Configuration.ID != 11 {
 		t.Fatalf("unexpected record: %+v", record)
 	}
-	if len(record.Embedded.Addresses) != 1 || record.Embedded.Addresses[0].Address != netip.MustParseAddr("192.0.2.8") {
-		t.Fatalf("unexpected embedded addresses: %+v", record.Embedded.Addresses)
+	host, ok := record.Details.(*dns.HostDetails)
+	if !ok || len(host.Addresses) != 1 || host.Addresses[0].Address != netip.MustParseAddr("192.0.2.8") {
+		t.Fatalf("unexpected host details: %+v", record.Details)
 	}
 }
 

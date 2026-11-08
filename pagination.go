@@ -31,6 +31,7 @@ type Page[T any] struct {
 // 10000 and bounds an iteration; reaching it with a next link returns an error.
 type ListOptions struct {
 	Filter   string
+	Where    Filter
 	Fields   []string
 	OrderBy  []string
 	Limit    int
@@ -39,6 +40,9 @@ type ListOptions struct {
 }
 
 func (o ListOptions) query() (url.Values, error) {
+	if err := o.Where.Err(); err != nil {
+		return nil, err
+	}
 	if o.Limit < 0 || o.Offset < 0 || o.MaxPages < 0 {
 		return nil, fmt.Errorf("bam: pagination values cannot be negative")
 	}
@@ -47,8 +51,15 @@ func (o ListOptions) query() (url.Values, error) {
 		limit = 1000
 	}
 	q := url.Values{"limit": {strconv.Itoa(limit)}, "offset": {strconv.Itoa(o.Offset)}}
+	filter := And(Filter{expression: o.Filter}, o.Where).String()
+	if o.Where.String() == "" {
+		filter = o.Filter
+	}
+	if o.Filter == "" {
+		filter = o.Where.String()
+	}
 	for key, value := range map[string]string{
-		"filter": o.Filter, "fields": strings.Join(o.Fields, ","), "orderBy": strings.Join(o.OrderBy, ","),
+		"filter": filter, "fields": strings.Join(o.Fields, ","), "orderBy": strings.Join(o.OrderBy, ","),
 	} {
 		if value != "" {
 			q.Set(key, value)
@@ -62,6 +73,7 @@ func (c Collection[T]) Page(ctx context.Context, options ListOptions) (Page[T], 
 	if err := c.check(); err != nil {
 		return Page[T]{}, err
 	}
+	options.Where = And(c.filter, options.Where)
 	query, err := options.query()
 	if err != nil {
 		return Page[T]{}, err
@@ -75,6 +87,7 @@ func (c Collection[T]) Page(ctx context.Context, options ListOptions) (Page[T], 
 // appropriate. Authentication is never forwarded outside the configured origin.
 func (c Collection[T]) All(ctx context.Context, options ListOptions) iter.Seq2[T, error] {
 	options.Fields, options.OrderBy = slices.Clone(options.Fields), slices.Clone(options.OrderBy)
+	options.Where = And(c.filter, options.Where)
 	return func(yield func(T, error) bool) {
 		var zero T
 		if err := c.check(); err != nil {

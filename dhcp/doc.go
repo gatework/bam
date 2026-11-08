@@ -1,31 +1,21 @@
-// Package dhcp selects Address Manager RESTful v2 DHCP resource collections.
+// Package dhcp manages DHCPv4 dynamic ranges, reserved MAC bindings, MAC pools,
+// deployment options, and deployment roles through Address Manager RESTful v2.
 //
-// Resources use bam.Document so fields outside this package's knowledge survive
-// reads and replacements. Construct request bodies from the target Address
-// Manager's /api/openapi.json schema. Resource types, required fields, and allowed
-// operations depend on that schema; the selectors do not invent DHCP enums or
-// translate legacy property strings.
+// Ranges use IPv4DHCPRange, and reservations use IPv4Address resources with
+// DHCP_RESERVED state. MAC resources belong to package ipam; MACMembers changes
+// only a pool relationship and never deletes the MAC resource on unlink.
 //
-// Page, All, and Create use the selected parent collection. Get, Document,
-// Replace, and Delete address the resource's global collection by ID. Replace
-// requires a complete document. Deployment option and role collections can also
-// contain resources for other services; callers can supply a schema-supported
-// filter. Editing an inherited option updates its original resource; overriding
-// it requires creating an option at the desired child scope.
+// Option and role collections enforce DHCP type filters. Options represent
+// configured local overrides; deleting an override restores parent inheritance.
+// The package does not synthesize an effective inherited configuration. Typed
+// option helpers cover common RFC DHCPv4 codes; server-specific option names and
+// definition IDs come from OptionDefinitions on the target appliance.
 //
-// MACPools and MACAddresses select resources, not pool membership. Deleting a MAC
-// address deletes the resource; it does not merely unlink it from a pool.
+// Mutations do not submit deployment jobs. New MAC pools disable instant
+// deployment, while existing appliance instant-deployment settings are retained
+// unless changed explicitly. Deploy configured services through package deployment.
 //
-// Endpoint mappings are based on the BlueCat Integrity 9.6 migration guide and
-// its HAL collection examples:
-//
-// https://docs.bluecatnetworks.com/r/Address-Manager-RESTful-v2-API-Guide/v1-REST-API-to-RESTful-v2-API-migration-guide/9.6.0
-//
-// https://docs.bluecatnetworks.com/r/Address-Manager-RESTful-v2-API-Guide/HAL-links/9.6.0
-//
-// Option and role scopes follow the documented DHCP hierarchy:
-//
-// https://docs.bluecatnetworks.com/r/Address-Manager-Administration-Guide/Adding-DHCPv4-client-deployment-options/9.6.0
-//
-// https://docs.bluecatnetworks.com/r/Address-Manager-Administration-Guide/DHCP-deployment-roles/9.6.0
+// Contracts use the vendor-exported BAM 9.5 OpenAPI schema plus documented BAM
+// 9.6 changes. RawRanges provides explicit access to DHCPv6 and version-specific
+// range fields outside this DHCPv4 model.
 package dhcp

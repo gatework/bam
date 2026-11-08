@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.2.0
+
+Breaking domain API expansion; module path remains `github.com/gatework/bam`.
+
+- Typed CRUD and changes for configurations, DNS views/zones/record variants,
+  IPAM blocks/networks/addresses/MACs, DHCPv4 ranges, reservations, options and roles.
+- Scoped IP/MAC/name queries, atomic server-selected IPv4 allocation, and explicit
+  distinction between static, administrative and DHCP reservations.
+- Separate response policies/local RPZs and ordered DNS client ACLs, with DNS
+  deployment options and roles.
+- Relationship Link/Unlink operations preserve resource lifetime; typed updates
+  retain unknown JSON fields and complete host-address associations.
+- Explicit full, differential, quick, validation and selective deployments,
+  read-only target/task discovery and bounded task waiting.
+- Source-backed capability matrix, executable examples and HTTP contract tests.
+  BAM 9.6 schema gaps and live appliance acceptance remain explicitly documented.
+
+Known limits include Response Policies view binding/ordering, HTTPS/SVCB/URI
+typed writes and multi-primary roles. See the
+[versioned capability matrix](https://github.com/gatework/bam/blob/v0.2.0/docs/rest-v2-coverage.md).
+
 ## v0.1.0
 
 Initial release of `github.com/gatework/bam`, a standard-library-only Go client

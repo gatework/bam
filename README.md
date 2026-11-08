@@ -1,44 +1,48 @@
 # bam
 
-A Go client for BlueCat Address Manager **RESTful v2**, using the BAM 9.6
-protocol documentation as its baseline. Requires Go 1.23 or later and uses only
-the standard library. This is a breaking replacement of the former SOAP client;
-there is no SOAP transport, WSDL-generated interface, or v1 token compatibility.
+A standard-library-only Go client for BlueCat Address Manager **RESTful v2**.
+Requires Go 1.23 or later; `go.mod` recommends Go 1.27.3. There is no SOAP or
+REST v1 compatibility layer.
 
-The project recommends Go 1.27.3 through `go.mod`'s toolchain directive. Go 1.23
-is tested for language compatibility; deploy with a currently patched Go release
-for standard-library security fixes.
-
-Install the published module:
+Install:
 
 ```sh
-go get github.com/gatework/bam@v0.1.0
+go get github.com/gatework/bam@v0.2.0
 ```
 
-Business modules share one authenticated client and one collection implementation:
+Version `v0.2.0` changes the domain API from `v0.1.0`; the examples below describe
+the new typed API. The module path remains `github.com/gatework/bam`. See the
+[migration decision](docs/adr/0002-typed-domain-capabilities.md) for the API changes.
+
+## Domains
 
 | Package | Responsibility |
 | --- | --- |
-| `bam` | JSON transport, sessions, errors, HAL pagination, full resource documents |
-| `configuration` | Configuration resources |
-| `dns` | Views, zones, resource records, host record creation |
-| `ipam` | IPv4/IPv6 blocks, networks, exact address assignment |
-| `dhcp` | Ranges, MAC resources, scoped deployment options and roles |
-| `deployment` | Server, zone, network and selective deployment requests; task retrieval |
+| `bam` | JSON transport, authentication, errors, pagination, lossless documents and explicit field changes |
+| `configuration` | Configuration creation and metadata updates |
+| `dns` | Views, zones, typed records, IP associations, searches, DNS options and roles |
+| `dns/responsepolicy` | Domain response policies, policy items and local RPZs |
+| `dns/accesscontrol` | Ordered client IP/CIDR ACLs and query/recursion access options |
+| `ipam` | Blocks, networks, static assignments, administrative reservations, next-address allocation, MAC resources and IP/MAC queries |
+| `dhcp` | DHCPv4 ranges, reservations, MAC pool membership, options and roles |
+| `deployment` | Server/interface discovery, explicit deployment submission and bounded task observation |
 
-Create a client with `bam.New("https://bam.example")`. Authenticate using
-`client.Login(ctx, username, password)`, or supply an existing v2 token through
-`bam.WithBasicAuth(username, apiToken)`. `bam.WithBearerToken(token)` supports
-externally managed OAuth credentials. Login stores the returned Basic
-credentials per client; the returned `Session` contains metadata only.
+The protocol baseline is **BAM 9.6**. Resource contracts come from a preserved
+vendor 9.5 OpenAPI export cross-checked with the official 9.6 changes. This is
+not a complete 9.6 appliance schema or a live acceptance result. The
+[capability matrix](docs/rest-v2-coverage.md) records implemented operations,
+schema provenance, version differences and remaining gaps.
 
-All network operations take a caller-owned context. `client.Logout(ctx)` sends
-the v2 session state transition; `client.CloseIdleConnections()` closes idle HTTP
-connections independently. Give logout its own bounded context if the operation's
-context has already expired. Failed writes are never automatically retried.
+## Client and allocation
 
-For example, create a network under a block without writing JSON resource types
-or HTTP request plumbing:
+Create a shared client with `bam.New("https://bam.example")`, then authenticate
+using `client.Login(ctx, username, password)`. An existing v2 token can be supplied
+with `bam.WithBasicAuth(username, apiToken)`; `bam.WithBearerToken(token)` supports
+externally managed OAuth credentials. Credentials are isolated per client.
+
+All network operations take a caller-owned context. Logout changes the remote
+session; `CloseIdleConnections` only closes idle connections. Use a separate,
+bounded logout context if the operation's context has already expired.
 
 ```go
 import (
@@ -49,97 +53,113 @@ import (
     "github.com/gatework/bam/ipam"
 )
 
-func addNetwork(ctx context.Context, client *bam.Client, blockID int64) (ipam.Network, error) {
-    return ipam.New(client).Networks(blockID).Create(ctx, ipam.NetworkSpec{
-        Name:  "application-network",
-        Range: netip.MustParsePrefix("192.0.2.0/24"),
+func assignServer(ctx context.Context, client *bam.Client, networkID int64) (ipam.Address, error) {
+    return ipam.New(client).Addresses(networkID).AssignStatic(ctx, ipam.AddressSpec{
+        Name:    "application",
+        Address: netip.MustParseAddr("192.0.2.10"),
     })
 }
 ```
 
-`configuration.Spec`, `dns.ViewSpec`, `dns.ZoneSpec`, `dns.HostRecordSpec`,
-`ipam.BlockSpec`, `ipam.NetworkSpec`, and `ipam.AddressSpec` encode documented
-create fields and infer resource types. IP values use `net/netip`; malformed or
-scoped addresses and prefixes with host bits fail before sending a request.
+`AssignStatic` creates a `STATIC` allocation. `Reserve` holds an IPv4 address as
+`RESERVED` without a DHCP binding. `dhcp.Reservations(networkID).Create` creates
+`DHCP_RESERVED` with a MAC. These are different business operations; see the
+[executable allocation example](ipam/example_test.go).
 
-Each domain selects a `Collection[T]`. `Page` fetches one page; `All` is a lazy
-Go iterator, following HAL `next` links until exhausted. Breaking iteration
-stops further requests. `count` is the current page's size, never a total.
+`AllocateNext` sends one allocation request and lets BAM choose the address.
+`Available` only queries unassigned IPAM candidates; it does not reserve them or
+report DHCP lease availability. `LookupIP` and `LookupMAC` require a configuration,
+and `AddressesByMAC` traverses the MAC's address association. Exact lookups return
+`bam.ErrNotFound` or `bam.ErrAmbiguous` instead of choosing an arbitrary result.
+
+## Reads and updates
+
+Domain handles expose supported operations with typed specifications and changes.
+Global selectors modify existing resources; creation selects a parent. Parent
+scopes constrain listing and creation, while ordinary item operations use global
+IDs. Relationship operations retain their nested scope: `Unlink` removes a
+membership, while `Delete` removes a resource.
+
+`Page` reads one page. `All` is a lazy `iter.Seq2`; breaking iteration stops further
+requests. Filters compose with `bam.Match`, `MatchID`, `Contains`, `And` and `Or`:
 
 ```go
-for network, err := range ipam.New(client).Networks(blockID).All(ctx, bam.ListOptions{
-    Limit:   200,
+for address, err := range ipam.New(client).Addresses(networkID).All(ctx, bam.ListOptions{
+    Where:   bam.Match("state", string(ipam.StateStatic)),
     OrderBy: []string{"id"},
+    Limit:   200,
 }) {
     if err != nil {
         return err
     }
-    // Use network.ID, network.Name, and network.Range.
+    // Use address.Address, address.State and address.MACAddress.
 }
 ```
 
-Parent scopes apply to `Page`, `All` and `Create`. `Get`, `Document`, `Replace`
-and `Delete` use globally unique resource IDs. Global DNS/IPAM selectors support
-cross-scope queries. A collection handle does not prove that every HTTP verb is
-supported by that endpoint; the device's OpenAPI schema defines its capabilities.
-MAC pool membership is deliberately separate from deleting a MAC resource.
-
-`PUT` replaces a complete resource. Read projections intentionally cannot be
-passed to `Replace`; obtain a lossless `Document`, edit it, and send it back:
+Typed `Update` reads a complete document, applies selected changes and sends PUT.
+It retains unmodeled fields and large integers. A zero `bam.Field` leaves a value
+unchanged; `bam.Set(false)` and `bam.Set(0)` explicitly write zero values.
+`bam.Clear[T]()` writes null only where that resource contract permits it.
+Deleting a local DNS/DHCP option restores inheritance; an empty option value does
+not. Updates are not atomic with concurrent writers and are never retried.
 
 ```go
-records := dns.New(client).GlobalRecords()
-document, err := records.Document(ctx, recordID)
+_, err := dns.New(client).Records(zoneID).Update(ctx, recordID, dns.HostChanges{
+    Addresses:     bam.Set([]netip.Addr{netip.MustParseAddr("192.0.2.11")}),
+    ReverseRecord: bam.Set(false),
+}, bam.WithChangeControlComment("Move application address"))
+```
+
+[DNS documentation](dns/README.md) describes record variants, complete host-address
+preservation and subtype-specific updates. `bam.Collection` and `Client.Do` remain
+explicit low-level extension points; their existence does not establish support
+for an unmodeled operation.
+
+## Blacklists and deployment
+
+Response policies match DNS names or responses. Client ACLs match IPs, networks,
+named ACLs or TSIG keys and preserve evaluation order. They have separate packages;
+see the [blacklist workflows](docs/blacklists.md).
+
+Configuration writes do not submit deployment tasks. Configure roles and options,
+then explicitly submit and observe a deployment:
+
+```go
+deployments := deployment.New(client)
+task, err := deployments.ForServer(serverID).Full(ctx, deployment.DNS)
 if err != nil {
     return err
 }
-if err := document.Set("name", "new-name"); err != nil {
-    return err
-}
-record, err := records.Replace(ctx, recordID, document)
+task, err = deployments.Tasks().Wait(ctx, task.ID, deployment.WaitOptions{})
 ```
 
-`Document` uses `json.RawMessage` to retain unknown fields, large integers, null
-and false values. Replacement checks the resource ID and type, removes HAL links
-from the outgoing copy, and does not mutate the input. Do not construct a partial
-document for PUT or use a projected collection item as a complete resource.
+Submission is not completion. `Wait` distinguishes pending, failure, cancellation,
+completion and unknown states, and preserves completion warnings. Cancelling the
+wait does not cancel the server task. Existing appliance dynamic-update and instant
+deployment settings can still cause writes to take effect immediately; the client
+does not silently rewrite those settings.
 
-Use `errors.As` to inspect `*bam.APIError` (HTTP status and BAM error code),
-`*bam.ProtocolError` (malformed success response), or `*bam.AcceptedError`
-(HTTP 202). An accepted workflow request is **pending**, not a completed DNS,
-IPAM or deployment change. `AcceptedError.Resource` retains the pending resource;
-do not resubmit the mutation. Context and transport errors remain discoverable
-through `errors.Is` / `errors.As`.
+HTTP 202 returns `*bam.AcceptedError` with the pending workflow resource; do not
+resubmit the mutation. HTTP failures use `*bam.APIError`; malformed success
+responses use `*bam.ProtocolError`. Inspect errors with `errors.Is` / `errors.As`.
 
-The default timeout is 30 seconds and the response limit is 16 MiB, configurable
-with `WithTimeout` and `WithResponseLimit`. `WithHTTPClient` injects a transport
-without mutating the caller's client. Redirects, cross-origin pagination and
-pagination scope changes are rejected. TLS verification stays enabled; configure
-trusted certificates on an injected `http.Transport` for private certificate
-authorities.
+## Verification and release
 
-Typed models cover the fields verified in the public 9.6 guide. DHCP and
-deployment use complete `Document` values rather than guessed request schemas.
-Other DNS types, allocation modes, and version-specific fields can use
-`Collection.Create` with a document, or `Client.Do` for additional JSON endpoints.
-In particular, the library does not infer a next-address allocation payload from
-a legacy endpoint mapping. Consult the target BAM's `/api/openapi.json` or
-`/api/docs`; unknown request fields can be silently ignored by BAM.
-
-Local verification uses `httptest`, with no BAM credentials or live mutations:
+HTTP contract tests exercise public APIs against `httptest`, without BAM
+credentials or live mutations:
 
 ```sh
-go test -race -timeout 60s ./...
+go test -race -shuffle=on -timeout 60s ./...
 go vet ./...
+go build ./...
 GOTOOLCHAIN=go1.23.0 GOWORK=off go test -timeout 60s ./...
 ```
 
-See the [domain vocabulary](GLOSSARY.md) and
-[RESTful v2 design decision](docs/adr/0001-restful-v2.md) for scope and source
-references. These tests establish client protocol behavior; they do not establish
-acceptance by a particular BAM appliance or complete coverage of its OpenAPI.
+Redirects and cross-origin or scope-changing pagination are rejected. TLS
+verification stays enabled. Default request timeout and response limit are
+30 seconds and 16 MiB; configure them or inject an `http.Client` as needed.
 
-Releases are tagged from successful main-branch CI commits. The release workflow
-reuses that CI run's immutable source artifact, verifies the revision and checksums,
-and compares downloaded draft assets before publication. See [CHANGELOG.md](CHANGELOG.md)
-for version history.
+See the [glossary](GLOSSARY.md), [domain design](docs/adr/0002-typed-domain-capabilities.md)
+and [changelog](CHANGELOG.md). Releases use successful same-commit CI artifacts
+and verify downloaded assets before publication. Local tests do not establish
+live appliance acceptance or publication of a new version.

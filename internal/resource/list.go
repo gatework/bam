@@ -1,0 +1,47 @@
+// Package resource shares typed operations among domain modules. It is not an
+// independently configurable public client or a registry of business resources.
+package resource
+
+import (
+	"context"
+	"iter"
+
+	"github.com/gatework/bam"
+)
+
+// List exposes only collection queries, suitable for relationship endpoints.
+type List[T any] struct{ collection bam.Collection[T] }
+
+func NewList[T any](collection bam.Collection[T]) List[T] { return List[T]{collection: collection} }
+
+func (l List[T]) Page(ctx context.Context, options bam.ListOptions) (bam.Page[T], error) {
+	return l.collection.Page(ctx, options)
+}
+
+func (l List[T]) All(ctx context.Context, options bam.ListOptions) iter.Seq2[T, error] {
+	return l.collection.All(ctx, options)
+}
+
+// CollectionOf gives domain implementations access to shared operations without
+// promoting a CRUD escape hatch through every public read-only handle.
+func CollectionOf[T any](list List[T]) bam.Collection[T] { return list.collection }
+
+// One reads at most two matching items and never silently chooses the first of
+// an ambiguous result. Errors returned by the iterator remain unchanged.
+func One[T any](items iter.Seq2[T, error]) (T, error) {
+	var result, zero T
+	found := false
+	for item, err := range items {
+		if err != nil {
+			return zero, err
+		}
+		if found {
+			return zero, bam.ErrAmbiguous
+		}
+		result, found = item, true
+	}
+	if !found {
+		return zero, bam.ErrNotFound
+	}
+	return result, nil
+}

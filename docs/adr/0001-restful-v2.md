@@ -1,6 +1,8 @@
 # RESTful v2 domain modules
 
-Status: accepted for this implementation.
+Status: historical v0.1.0 decision. Transport and lossless-document decisions
+remain accepted. Domain capabilities and deployment polling below are superseded
+by [ADR 0002](0002-typed-domain-capabilities.md).
 
 The former client exposed 256 generated SOAP operations in one file, global
 cookie state, and legacy property strings. The selected direction is a clean

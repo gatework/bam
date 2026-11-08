@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
+	"reflect"
 	"sync/atomic"
 	"testing"
 
@@ -15,132 +15,243 @@ import (
 	"github.com/gatework/bam/deployment"
 )
 
-func TestClientSubmissionScope(t *testing.T) {
+func TestClientSubmissions(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name       string
-		selectFrom func(*deployment.Client) bam.Collection[bam.Document]
-		path       string
+		name   string
+		path   string
+		body   string
+		submit func(*deployment.Client, ...bam.WriteOption) (deployment.Task, error)
 	}{
-		{
-			"server", func(c *deployment.Client) bam.Collection[bam.Document] { return c.ForServer(42) },
-			"/api/v2/servers/42/deployments",
-		},
-		{
-			"zone", func(c *deployment.Client) bam.Collection[bam.Document] { return c.ForZone(42) },
-			"/api/v2/zones/42/deployments",
-		},
-		{
-			"network", func(c *deployment.Client) bam.Collection[bam.Document] { return c.ForNetwork(42) },
-			"/api/v2/networks/42/deployments",
-		},
-		{
-			"selective", func(c *deployment.Client) bam.Collection[bam.Document] { return c.Tasks() },
-			"/api/v2/deployments",
-		},
+		{"full dns", "/api/v2/servers/42/deployments", `{"type":"FullDeployment","service":"DNS"}`,
+			func(c *deployment.Client, o ...bam.WriteOption) (deployment.Task, error) {
+				return c.ForServer(42).Full(context.Background(), deployment.DNS, o...)
+			}},
+		{"full dhcp", "/api/v2/servers/42/deployments", `{"type":"FullDeployment","service":"DHCPv4"}`,
+			func(c *deployment.Client, o ...bam.WriteOption) (deployment.Task, error) {
+				return c.ForServer(42).Full(context.Background(), deployment.DHCPv4, o...)
+			}},
+		{"differential", "/api/v2/servers/42/deployments", `{"type":"DifferentialDeployment","service":"DNS"}`,
+			func(c *deployment.Client, o ...bam.WriteOption) (deployment.Task, error) {
+				return c.ForServer(42).Differential(context.Background(), deployment.DNS, o...)
+			}},
+		{"validation", "/api/v2/servers/42/deployments", `{"type":"ValidationDeployment","service":"DHCPv4"}`,
+			func(c *deployment.Client, o ...bam.WriteOption) (deployment.Task, error) {
+				return c.ForServer(42).Validate(context.Background(), deployment.DHCPv4, o...)
+			}},
+		{"quick zone", "/api/v2/zones/42/deployments", `{"type":"QuickDeployment"}`,
+			func(c *deployment.Client, o ...bam.WriteOption) (deployment.Task, error) {
+				return c.ForZone(42).Quick(context.Background(), o...)
+			}},
+		{"quick network", "/api/v2/networks/42/deployments", `{"type":"QuickDeployment"}`,
+			func(c *deployment.Client, o ...bam.WriteOption) (deployment.Task, error) {
+				return c.ForNetwork(42).Quick(context.Background(), o...)
+			}},
+		{"selective", "/api/v2/deployments", `{"type":"SelectiveDeployment","resources":[{"id":12},{"id":34}],"batchMode":"BATCH_BY_SERVER","recordScope":"SPECIFIC","continueOnFailureEnabled":false,"dynamicRecordDeploymentStrategy":"ABORT"}`,
+			func(c *deployment.Client, o ...bam.WriteOption) (deployment.Task, error) {
+				return c.Selective(context.Background(), deployment.SelectiveSpec{
+					Resources: []bam.Reference{{ID: 12}, {ID: 34}}, BatchMode: deployment.BatchByServer,
+					RecordScope: deployment.RecordScopeSpecific, DynamicStrategy: deployment.DynamicAbort,
+				}, o...)
+			}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			// This fixture tests JSON transport, not a particular server schema.
-			const body = `{"opaqueSetting":{"enabled":false,"number":9007199254740993},"nullable":null}`
-			const task = `{"id":77,"type":"Deployment","state":"SERVER_DEFINED","opaqueSetting":{"number":9007199254740993}}`
-			requests := make(chan string, 2)
+			var requests atomic.Int64
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				requests <- r.Method + " " + r.URL.Path
-				w.Header().Set("Content-Type", "application/hal+json")
-				if r.Method == http.MethodPost {
-					got, err := io.ReadAll(r.Body)
-					if err != nil {
-						t.Error(err)
-					}
-					if strings.TrimSpace(string(got)) != body {
-						t.Errorf("submission = %s, want %s", got, body)
-					}
-					w.WriteHeader(http.StatusCreated)
+				requests.Add(1)
+				if r.Method != http.MethodPost || r.URL.Path != tt.path {
+					t.Errorf("request = %s %s, want POST %s", r.Method, r.URL.Path, tt.path)
 				}
-				_, _ = io.WriteString(w, task)
+				if r.Header.Get("x-bcn-change-control-comment") != "change-42" {
+					t.Errorf("missing change-control comment")
+				}
+				var got, expected map[string]any
+				if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
+					t.Error(err)
+				}
+				if err := json.Unmarshal([]byte(tt.body), &expected); err != nil {
+					t.Error(err)
+				}
+				if !reflect.DeepEqual(got, expected) {
+					t.Errorf("body = %#v, want %#v", got, expected)
+				}
+				w.Header().Set("Content-Type", "application/hal+json")
+				w.WriteHeader(http.StatusCreated)
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"id": 77, "type": got["type"], "state": "QUEUED", "percentComplete": 0,
+				})
 			}))
 			t.Cleanup(server.Close)
-			client, err := bam.New(server.URL)
+			task, err := tt.submit(newClient(t, server), bam.WithChangeControlComment("change-42"))
 			if err != nil {
 				t.Fatal(err)
 			}
-			collection := tt.selectFrom(deployment.New(client))
-			created, err := collection.Create(context.Background(), json.RawMessage(body))
-			if err != nil {
-				t.Fatal(err)
-			}
-			read, err := collection.Get(context.Background(), 77)
-			if err != nil {
-				t.Fatal(err)
-			}
-			for _, expected := range []string{"POST " + tt.path, "GET /api/v2/deployments/77"} {
-				if got := <-requests; got != expected {
-					t.Errorf("request = %q, want %q", got, expected)
-				}
-			}
-			for _, document := range []bam.Document{created, read} {
-				if got := string(document["opaqueSetting"]); got != `{"number":9007199254740993}` {
-					t.Errorf("unknown task field changed: %s", got)
-				}
+			if task.ID != 77 || task.State != deployment.StateQueued || requests.Load() != 1 {
+				t.Fatalf("submission = %+v, requests = %d; submission must not poll", task, requests.Load())
 			}
 		})
 	}
 }
 
-func TestClientTaskErrorsAndCancellation(t *testing.T) {
+func TestClientSubmissionFailures(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name   string
+		status int
+		body   string
+		check  func(*testing.T, error)
+	}{
+		{"pending workflow", http.StatusAccepted, `{"id":77,"type":"WorkflowRequest","state":"PENDING"}`,
+			func(t *testing.T, err error) {
+				var accepted *bam.AcceptedError
+				if !errors.As(err, &accepted) || string(accepted.Resource["type"]) != `"WorkflowRequest"` {
+					t.Fatalf("error = %v, want retained pending workflow", err)
+				}
+			}},
+		{"wrong resource", http.StatusCreated, `{"id":77,"type":"WorkflowRequest","state":"PENDING"}`,
+			func(t *testing.T, err error) {
+				var protocol *bam.ProtocolError
+				if !errors.As(err, &protocol) {
+					t.Fatalf("error = %v, want protocol error", err)
+				}
+			}},
+		{"conflict", http.StatusConflict, `{"status":409,"code":"Conflict","message":"already deploying"}`,
+			func(t *testing.T, err error) {
+				var api *bam.APIError
+				if !errors.As(err, &api) || api.StatusCode != http.StatusConflict {
+					t.Fatalf("error = %v, want conflict", err)
+				}
+			}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			var requests atomic.Int64
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				w.Header().Set("Content-Type", "application/hal+json")
+				w.WriteHeader(tt.status)
+				_, _ = io.WriteString(w, tt.body)
+			}))
+			t.Cleanup(server.Close)
+			task, err := newClient(t, server).ForServer(42).Full(context.Background(), deployment.DNS)
+			tt.check(t, err)
+			if task.ID != 0 || requests.Load() != 1 {
+				t.Fatalf("task = %+v, requests = %d; failed writes must not be retried", task, requests.Load())
+			}
+		})
+	}
+}
+
+func TestClientRejectsInvalidSubmissions(t *testing.T) {
 	t.Parallel()
 	var requests atomic.Int64
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requests.Add(1)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusForbidden)
-		_, _ = io.WriteString(w, `{"status":403,"code":"PermissionDenied","message":"denied"}`)
+		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	t.Cleanup(server.Close)
-	client, err := bam.New(server.URL)
-	if err != nil {
-		t.Fatal(err)
+	c := newClient(t, server)
+	tests := []struct {
+		name string
+		run  func() (deployment.Task, error)
+	}{
+		{"missing service", func() (deployment.Task, error) { return c.ForServer(42).Full(context.Background(), "") }},
+		{"unsupported service", func() (deployment.Task, error) { return c.ForServer(42).Full(context.Background(), "DHCP") }},
+		{"unsupported validation", func() (deployment.Task, error) {
+			return c.ForServer(42).Validate(context.Background(), deployment.TFTP)
+		}},
+		{"invalid server", func() (deployment.Task, error) { return c.ForServer(0).Full(context.Background(), deployment.DNS) }},
+		{"invalid zone", func() (deployment.Task, error) { return c.ForZone(-1).Quick(context.Background()) }},
+		{"missing selective resources", func() (deployment.Task, error) { return c.Selective(context.Background(), deployment.SelectiveSpec{}) }},
+		{"invalid selective resource", func() (deployment.Task, error) {
+			return c.Selective(context.Background(), deployment.SelectiveSpec{Resources: []bam.Reference{{ID: 0}}})
+		}},
+		{"invalid batch mode", func() (deployment.Task, error) {
+			return c.Selective(context.Background(), deployment.SelectiveSpec{Resources: []bam.Reference{{ID: 42}}, BatchMode: "INVALID"})
+		}},
+		{"invalid record scope", func() (deployment.Task, error) {
+			return c.Selective(context.Background(), deployment.SelectiveSpec{Resources: []bam.Reference{{ID: 42}}, RecordScope: "INVALID"})
+		}},
+		{"invalid dynamic strategy", func() (deployment.Task, error) {
+			return c.Selective(context.Background(), deployment.SelectiveSpec{Resources: []bam.Reference{{ID: 42}}, DynamicStrategy: "INVALID"})
+		}},
 	}
-	tasks := deployment.New(client).Tasks()
-	if _, err := tasks.Get(context.Background(), 77); err == nil {
-		t.Fatal("Get succeeded despite forbidden response")
-	} else {
-		var apiError *bam.APIError
-		if !errors.As(err, &apiError) || apiError.StatusCode != http.StatusForbidden || apiError.Code != "PermissionDenied" {
-			t.Fatalf("Get error = %v, want forbidden APIError", err)
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := tt.run(); err == nil {
+				t.Fatal("invalid submission succeeded")
+			}
+		})
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	if _, err := tasks.Get(ctx, 77); !errors.Is(err, context.Canceled) {
-		t.Fatalf("cancelled Get error = %v, want context.Canceled", err)
-	}
-	if got := requests.Load(); got != 1 {
-		t.Errorf("requests = %d, want only the uncancelled request", got)
+	if requests.Load() != 0 {
+		t.Errorf("invalid submissions made %d requests", requests.Load())
 	}
 }
 
-func TestClientSubmissionAcceptedIsNotCompleted(t *testing.T) {
+func TestClientReadScopesAndFullDocument(t *testing.T) {
 	t.Parallel()
+	paths := make(chan string, 5)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths <- r.Method + " " + r.URL.Path
 		w.Header().Set("Content-Type", "application/hal+json")
-		w.Header().Set("Location", "/api/v2/workflowRequests/77")
-		w.WriteHeader(http.StatusAccepted)
-		_, _ = io.WriteString(w, `{"id":77,"type":"WorkflowRequest","state":"PENDING"}`)
+		if r.URL.Path == "/api/v2/deployments/77" {
+			_, _ = io.WriteString(w, `{"id":77,"type":"FullDeployment","state":"RUNNING","service":"DNS","opaque":{"integer":9007199254740993}}`)
+			return
+		}
+		_, _ = io.WriteString(w, `{"count":0,"data":[]}`)
 	}))
 	t.Cleanup(server.Close)
-	client, err := bam.New(server.URL)
+	c := newClient(t, server)
+	for _, tasks := range []deployment.Tasks{c.Tasks(), c.ForServer(42).Tasks, c.ZoneTasks(43)} {
+		if _, err := tasks.Page(context.Background(), bam.ListOptions{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := c.ForServer(42).Get(context.Background(), 77); err != nil {
+		t.Fatal(err)
+	}
+	document, err := c.Tasks().Document(context.Background(), 77)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = deployment.New(client).ForServer(42).Create(context.Background(), json.RawMessage(`{"type":"Deployment"}`))
-	var accepted *bam.AcceptedError
-	if !errors.As(err, &accepted) {
-		t.Fatalf("Create error = %v, want AcceptedError", err)
+	if string(document["opaque"]) != `{"integer":9007199254740993}` {
+		t.Fatalf("full task lost opaque fields: %s", document["opaque"])
 	}
-	if string(accepted.Resource["type"]) != `"WorkflowRequest"` || accepted.Location != "/api/v2/workflowRequests/77" {
-		t.Errorf("accepted resource or location was lost: %#v", accepted)
+	for _, expected := range []string{
+		"GET /api/v2/deployments", "GET /api/v2/servers/42/deployments", "GET /api/v2/zones/43/deployments",
+		"GET /api/v2/deployments/77", "GET /api/v2/deployments/77",
+	} {
+		if got := <-paths; got != expected {
+			t.Errorf("request = %s, want %s", got, expected)
+		}
 	}
+}
+
+func TestForceZoneTransfer(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("x-bcn-force-zone-transfer"); got != "true" {
+			t.Errorf("force-zone-transfer = %q, want true", got)
+		}
+		w.Header().Set("Content-Type", "application/hal+json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = io.WriteString(w, `{"id":77,"type":"FullDeployment","state":"QUEUED"}`)
+	}))
+	t.Cleanup(server.Close)
+	if _, err := newClient(t, server).ForServer(42).Full(context.Background(), deployment.DNS, deployment.WithForceZoneTransfer(true)); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func newClient(t *testing.T, server *httptest.Server) *deployment.Client {
+	t.Helper()
+	client, err := bam.New(server.URL, bam.WithHTTPClient(server.Client()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(client.CloseIdleConnections)
+	return deployment.New(client)
 }

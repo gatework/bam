@@ -1,22 +1,21 @@
-// Package ipam manages IPv4 and IPv6 blocks, networks, and addresses using the
-// Address Manager RESTful v2 API documented for BAM 9.6.
+// Package ipam manages address space, IP allocations, MAC resources, and lookups
+// through the Address Manager RESTful v2 API.
 //
-// Parent IDs scope collection reads and creates; item operations address the
-// global resource ID. BlockSpec and NetworkSpec create explicit CIDR ranges,
-// while AddressSpec assigns an explicit IP address. The specs infer the v2
-// resource type from net/netip values and validate them before a request is sent.
+// Blocks, networks, and addresses use typed specifications for creation and
+// explicit changes for updates. Updates read the full resource before applying
+// changes, preserving server fields absent from the read models. Parent IDs
+// scope collection reads and creates; item operations use global resource IDs.
 //
-// These models cover documented common fields, not the entire server schema.
-// Use Collection.Document and Replace to preserve unknown fields during full
-// replacement. Collection.Create also accepts a bam.Document for fields or
-// allocation modes documented by the target server's /api/openapi.json. In
-// particular, this package does not infer an atomic next-address allocation
-// request from the migration guide's endpoint mapping alone.
+// STATIC assigns a fixed address, RESERVED holds an address administratively,
+// and DHCP_RESERVED binds an address to a MAC for DHCP. AllocateNext delegates
+// selection to a single server-side POST. An Available query does not reserve an
+// address. Release deletes the allocation and does not delete its MAC resource.
 //
-// Endpoint and field references:
+// Exact IP and MAC lookups require a configuration scope and report ambiguous
+// results. MAC values normalize 48-bit hardware addresses. IPv4 is the primary
+// workflow; explicit IPv6 block, network, and address operations remain available.
 //
-//   - https://docs.bluecatnetworks.com/r/Address-Manager-RESTful-v2-API-Guide/v1-REST-API-to-RESTful-v2-API-migration-guide/9.6.0
-//   - https://docs.bluecatnetworks.com/r/Address-Manager-RESTful-v2-API-Guide/Collections/9.6.0
-//   - https://docs.bluecatnetworks.com/r/Address-Manager-RESTful-v2-API-Guide/Filter/9.6.0
-//   - https://docs.bluecatnetworks.com/r/Address-Manager-RESTful-v2-API-Guide/Fields/9.6.0
+// The resource contracts come from the vendor-exported BAM 9.5 OpenAPI schema,
+// supplemented by documented BAM 9.6 field and HTTP-header changes. Appliances
+// remain authoritative for allocation policy, inheritance, and reference checks.
 package ipam
