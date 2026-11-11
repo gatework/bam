@@ -16,7 +16,9 @@ func newClient(t *testing.T, handler http.HandlerFunc) *dhcp.Client {
 	t.Helper()
 	server := httptest.NewServer(handler)
 	t.Cleanup(server.Close)
-	client, err := bam.New(server.URL)
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	t.Cleanup(transport.CloseIdleConnections)
+	client, err := bam.New(server.URL, bam.WithHTTPClient(&http.Client{Transport: transport}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +60,7 @@ func TestClientCollectionScope(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			client := newClient(t, func(w http.ResponseWriter, r *http.Request) {
-				if r.Method != "GET" || r.URL.Path != "/api/v2/"+tt.path {
+				if r.Method != http.MethodGet || r.URL.Path != "/api/v2/"+tt.path {
 					t.Errorf("request=%s %s", r.Method, r.URL.Path)
 				}
 				if !strings.Contains(r.URL.Query().Get("filter"), tt.kind) {

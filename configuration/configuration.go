@@ -53,8 +53,8 @@ func (s Spec) MarshalJSON() ([]byte, error) {
 	}
 	type spec Spec
 	return json.Marshal(struct {
-		Type string `json:"type"`
 		spec
+		Type string `json:"type"`
 	}{Type: "Configuration", spec: spec(s)})
 }
 
@@ -66,6 +66,7 @@ type Changes struct {
 	ConfigurationGroup bam.Field[string]
 }
 
+// Apply validates and applies explicitly set fields to the complete resource document.
 func (c Changes) Apply(d bam.Document) error {
 	if c.Name.IsNull() || c.Description.IsNull() || c.ConfigurationGroup.IsNull() {
 		return fmt.Errorf("configuration: metadata fields cannot be null")

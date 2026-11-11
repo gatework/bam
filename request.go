@@ -27,51 +27,14 @@ type Request struct {
 // decodes one JSON value into dst, or discards the body when dst is nil. HTTP 202
 // returns AcceptedError without decoding the pending resource into dst.
 func (c *Client) Do(ctx context.Context, request Request, dst any) error {
-	u, err := c.resolve(request.Path)
+	req, err := c.prepareRequest(ctx, request)
 	if err != nil {
 		return err
 	}
-	query := u.Query()
-	for key, values := range request.Query {
-		query[key] = append([]string(nil), values...)
-	}
-	u.RawQuery = query.Encode()
-	var body io.Reader
-	if request.Body != nil {
-		encoded, err := json.Marshal(request.Body)
-		if err != nil {
-			return fmt.Errorf("bam: encode request: %w", err)
-		}
-		body = bytes.NewReader(encoded)
-	}
-	req, err := http.NewRequestWithContext(ctx, request.Method, u.String(), body)
-	if err != nil {
-		return fmt.Errorf("bam: create request: %w", err)
-	}
-	req.Header = request.Header.Clone()
-	if req.Header == nil {
-		req.Header = make(http.Header)
-	}
-	for key := range req.Header {
-		switch strings.ToLower(key) {
-		case "authorization", "cookie", "host", "content-length", "transfer-encoding", "accept", "content-type":
-			delete(req.Header, key)
-		}
-	}
-	req.Header.Set("Accept", "application/hal+json")
-	if body != nil {
-		contentType := "application/json"
-		if req.Method == http.MethodPatch {
-			contentType = "application/merge-patch+json"
-		}
-		req.Header.Set("Content-Type", contentType)
-	}
-	if auth := c.credentials(); auth != "" {
-		req.Header.Set("Authorization", auth)
-	}
+	path := req.URL.Path
 	response, err := c.http.Do(req)
 	if err != nil {
-		return fmt.Errorf("bam: %s %s: %w", req.Method, u.Path, err)
+		return fmt.Errorf("bam: %s %s: %w", req.Method, path, err)
 	}
 	defer func() {
 		// Read failures are reported below; closing releases the response body.
@@ -79,7 +42,7 @@ func (c *Client) Do(ctx context.Context, request Request, dst any) error {
 	}()
 	data, readErr := io.ReadAll(io.LimitReader(response.Body, c.responseLimit+1))
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		apiErr := &APIError{StatusCode: response.StatusCode, Method: req.Method, Path: u.Path, Err: readErr}
+		apiErr := &APIError{StatusCode: response.StatusCode, Method: req.Method, Path: path, Err: readErr}
 		if readErr == nil && int64(len(data)) <= c.responseLimit {
 			var fields struct{ Code, Reason, Message string }
 			if json.Unmarshal(data, &fields) == nil {
@@ -89,10 +52,10 @@ func (c *Client) Do(ctx context.Context, request Request, dst any) error {
 		return apiErr
 	}
 	if readErr != nil {
-		return fmt.Errorf("bam: read %s %s response: %w", req.Method, u.Path, readErr)
+		return fmt.Errorf("bam: read %s %s response: %w", req.Method, path, readErr)
 	}
 	protocolError := func(detail string, err error) error {
-		return &ProtocolError{Method: req.Method, Path: u.Path, Detail: detail, Err: err}
+		return &ProtocolError{Method: req.Method, Path: path, Detail: detail, Err: err}
 	}
 	if int64(len(data)) > c.responseLimit {
 		return protocolError("response exceeds configured size limit", nil)
@@ -147,10 +110,56 @@ func (c *Client) resolve(path string) (*url.URL, error) {
 	if strings.Contains(u.Path, "\\") || strings.Contains(u.Path, "//") || u.RawPath != "" {
 		return nil, fmt.Errorf("bam: resource URL contains an ambiguous path")
 	}
-	for _, segment := range strings.Split(u.Path, "/") {
+	for segment := range strings.SplitSeq(u.Path, "/") {
 		if segment == "." || segment == ".." {
 			return nil, fmt.Errorf("bam: resource URL contains a traversal segment")
 		}
 	}
 	return u, nil
+}
+
+func (c *Client) prepareRequest(ctx context.Context, request Request) (*http.Request, error) {
+	u, err := c.resolve(request.Path)
+	if err != nil {
+		return nil, err
+	}
+	query := u.Query()
+	for key, values := range request.Query {
+		query[key] = append([]string(nil), values...)
+	}
+	u.RawQuery = query.Encode()
+	var body io.Reader
+	if request.Body != nil {
+		encoded, err := json.Marshal(request.Body)
+		if err != nil {
+			return nil, fmt.Errorf("bam: encode request: %w", err)
+		}
+		body = bytes.NewReader(encoded)
+	}
+	req, err := http.NewRequestWithContext(ctx, request.Method, u.String(), body)
+	if err != nil {
+		return nil, fmt.Errorf("bam: create request: %w", err)
+	}
+	req.Header = request.Header.Clone()
+	if req.Header == nil {
+		req.Header = make(http.Header)
+	}
+	for key := range req.Header {
+		switch strings.ToLower(key) {
+		case "authorization", "cookie", "host", "content-length", "transfer-encoding", "accept", "content-type":
+			delete(req.Header, key)
+		}
+	}
+	req.Header.Set("Accept", "application/hal+json")
+	if body != nil {
+		contentType := "application/json"
+		if req.Method == http.MethodPatch {
+			contentType = "application/merge-patch+json"
+		}
+		req.Header.Set("Content-Type", contentType)
+	}
+	if auth := c.credentials(); auth != "" {
+		req.Header.Set("Authorization", auth)
+	}
+	return req, nil
 }

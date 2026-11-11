@@ -14,8 +14,6 @@ type HostDetails struct {
 	Addresses     []Address `json:"-"`
 }
 
-func (*HostDetails) recordDetails() {}
-
 // UnmarshalJSON reads addresses from the documented HAL embedding.
 func (h *HostDetails) UnmarshalJSON(data []byte) error {
 	var wire struct {
@@ -101,3 +99,5 @@ func (*ExternalHostDetails) recordDetails() {}
 type UnknownDetails struct{ Fields bam.Document }
 
 func (*UnknownDetails) recordDetails() {}
+
+func (*HostDetails) recordDetails() {}

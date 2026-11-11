@@ -137,11 +137,11 @@ func setAuthorization(s *settings, value string) error {
 	return nil
 }
 
+// CloseIdleConnections closes idle transport connections; it does not log out.
+func (c *Client) CloseIdleConnections() { c.http.CloseIdleConnections() }
+
 func (c *Client) credentials() string {
 	c.authMu.RLock()
 	defer c.authMu.RUnlock()
 	return c.authorization
 }
-
-// CloseIdleConnections closes idle transport connections; it does not log out.
-func (c *Client) CloseIdleConnections() { c.http.CloseIdleConnections() }

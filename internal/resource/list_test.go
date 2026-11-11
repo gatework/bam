@@ -26,6 +26,7 @@ func TestOneDoesNotHideAmbiguityOrIteratorFailure(t *testing.T) {
 		{"later failure", []int{7}, wantErr, 0, wantErr, 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			reads := 0
 			var seq iter.Seq2[int, error] = func(yield func(int, error) bool) {
 				for _, v := range tc.values {

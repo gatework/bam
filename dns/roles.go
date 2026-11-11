@@ -13,6 +13,7 @@ import (
 // space. NONE clears the deployed data for that role on the next deployment.
 type RoleType string
 
+// Supported deployment role types.
 const (
 	RolePrimary          RoleType = "PRIMARY"
 	RoleHiddenPrimary    RoleType = "HIDDEN_PRIMARY"
@@ -59,6 +60,7 @@ func validateInterfaces(interfaces []RoleInterface) error {
 	return nil
 }
 
+// Role is a DNS deployment role returned by BAM.
 type Role struct {
 	bam.Resource
 	Configuration bam.Reference `json:"configuration"`
@@ -76,6 +78,7 @@ type RoleSpec struct {
 	NSRecordTTL *int64
 }
 
+// MarshalJSON validates and encodes the RESTful v2 JSON representation.
 func (s RoleSpec) MarshalJSON() ([]byte, error) {
 	if err := s.RoleType.validate(); err != nil {
 		return nil, err
@@ -102,12 +105,14 @@ func (s RoleSpec) MarshalJSON() ([]byte, error) {
 	}{"DNSDeploymentRole", s.RoleType, s.Interfaces, view, s.NSRecordTTL})
 }
 
+// RoleChanges updates explicitly set deployment role fields.
 type RoleChanges struct {
 	RoleType    bam.Field[RoleType]
 	Interfaces  bam.Field[[]RoleInterface]
 	NSRecordTTL bam.Field[int64]
 }
 
+// Apply validates and applies explicitly set fields to the complete resource document.
 func (c RoleChanges) Apply(d bam.Document) error {
 	if c.RoleType.IsNull() || c.Interfaces.IsNull() || c.NSRecordTTL.IsNull() {
 		return fmt.Errorf("dns: deployment role fields cannot be null")
@@ -134,26 +139,43 @@ func (c RoleChanges) Apply(d bam.Document) error {
 	return c.NSRecordTTL.Apply(d, "nsRecordTtl")
 }
 
+// Roles provides deployment role creation and mutation under a parent resource.
 type Roles struct {
 	resource.Collection[Role, RoleSpec, RoleChanges]
 }
+
+// RoleItems provides existing deployment role operations by global ID.
 type RoleItems struct {
 	resource.Items[Role, RoleChanges]
 }
+
+// RoleInterfaces provides read-only discovery of interfaces assigned to a role.
 type RoleInterfaces struct{ resource.List[RoleInterface] }
 
-func (c *Client) roles(parent string, id int64) Roles {
-	collection := bam.ChildCollection[Role](c.client, parent, id, "deploymentRoles").WithFilter(bam.Match("type", "DNSDeploymentRole"))
-	return Roles{resource.NewCollection[Role, RoleSpec, RoleChanges](collection, "DNSDeploymentRole")}
-}
-func (c *Client) ViewRoles(id int64) Roles    { return c.roles("views", id) }
-func (c *Client) ZoneRoles(id int64) Roles    { return c.roles("zones", id) }
-func (c *Client) BlockRoles(id int64) Roles   { return c.roles("blocks", id) }
+// ViewRoles selects deployment roles directly beneath the supplied view.
+func (c *Client) ViewRoles(id int64) Roles { return c.roles("views", id) }
+
+// ZoneRoles selects deployment roles directly beneath the supplied zone.
+func (c *Client) ZoneRoles(id int64) Roles { return c.roles("zones", id) }
+
+// BlockRoles selects deployment roles directly beneath the supplied block.
+func (c *Client) BlockRoles(id int64) Roles { return c.roles("blocks", id) }
+
+// NetworkRoles selects deployment roles directly beneath the supplied network.
 func (c *Client) NetworkRoles(id int64) Roles { return c.roles("networks", id) }
+
+// GlobalRoles selects existing deployment roles by global resource ID.
 func (c *Client) GlobalRoles() RoleItems {
 	collection := bam.NewCollection[Role](c.client, "deploymentRoles").WithFilter(bam.Match("type", "DNSDeploymentRole"))
 	return RoleItems{resource.NewItems[Role, RoleChanges](collection, "DNSDeploymentRole")}
 }
+
+// RoleInterfaces selects server interface associations for a deployment role.
 func (c *Client) RoleInterfaces(roleID int64) RoleInterfaces {
 	return RoleInterfaces{resource.NewList(bam.ChildCollection[RoleInterface](c.client, "deploymentRoles", roleID, "interfaces"))}
+}
+
+func (c *Client) roles(parent string, id int64) Roles {
+	collection := bam.ChildCollection[Role](c.client, parent, id, "deploymentRoles").WithFilter(bam.Match("type", "DNSDeploymentRole"))
+	return Roles{resource.NewCollection[Role, RoleSpec, RoleChanges](collection, "DNSDeploymentRole")}
 }

@@ -1,13 +1,13 @@
 # bam
 
 A standard-library-only Go client for BlueCat Address Manager **RESTful v2**.
-Requires Go 1.23 or later; `go.mod` recommends Go 1.27.3. There is no SOAP or
+Requires Go 1.26 or later. There is no SOAP or
 REST v1 compatibility layer.
 
 Install:
 
 ```sh
-go get github.com/gatework/bam@v0.2.0
+go get github.com/gatework/bam@v0.3.0
 ```
 
 Version `v0.2.0` changes the domain API from `v0.1.0`; the examples below describe
@@ -163,3 +163,7 @@ See the [glossary](GLOSSARY.md), [domain design](docs/adr/0002-typed-domain-capa
 and [changelog](CHANGELOG.md). Releases use successful same-commit CI artifacts
 and verify downloaded assets before publication. Local tests do not establish
 live appliance acceptance or publication of a new version.
+
+## Development
+
+Run `make check` to use the published go-standards v1.0.2 lint, formatting, architecture, race and vulnerability gates, plus module verification, build and workflow checks. These development tools are not runtime module dependencies.

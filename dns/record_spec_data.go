@@ -14,8 +14,6 @@ type TXTRecordSpec struct {
 	UserDefinedFields map[string]string `json:"userDefinedFields,omitempty"`
 }
 
-func (TXTRecordSpec) recordKind() RecordKind { return TXT }
-
 // MarshalJSON supplies the TXT discriminator.
 func (s TXTRecordSpec) MarshalJSON() ([]byte, error) {
 	if err := validateRecord(s.Name, s.TTL); err != nil {
@@ -37,8 +35,6 @@ type HINFORecordSpec struct {
 	OS                string            `json:"os,omitempty"`
 	UserDefinedFields map[string]string `json:"userDefinedFields,omitempty"`
 }
-
-func (HINFORecordSpec) recordKind() RecordKind { return HINFO }
 
 // MarshalJSON supplies the HINFO discriminator.
 func (s HINFORecordSpec) MarshalJSON() ([]byte, error) {
@@ -63,8 +59,6 @@ type NAPTRRecordSpec struct {
 	UserDefinedFields map[string]string `json:"userDefinedFields,omitempty"`
 }
 
-func (NAPTRRecordSpec) recordKind() RecordKind { return NAPTR }
-
 // MarshalJSON supplies the NAPTR discriminator.
 func (s NAPTRRecordSpec) MarshalJSON() ([]byte, error) {
 	if err := validateRecord(s.Name, s.TTL); err != nil {
@@ -86,8 +80,6 @@ type GenericRecordSpec struct {
 	UserDefinedFields map[string]string `json:"userDefinedFields,omitempty"`
 }
 
-func (GenericRecordSpec) recordKind() RecordKind { return Generic }
-
 // MarshalJSON supplies the generic discriminator without inferring RDATA.
 func (s GenericRecordSpec) MarshalJSON() ([]byte, error) {
 	if err := validateRecord(s.Name, s.TTL); err != nil {
@@ -99,3 +91,11 @@ func (s GenericRecordSpec) MarshalJSON() ([]byte, error) {
 	type fields GenericRecordSpec
 	return marshalSpec(string(Generic), fields(s))
 }
+
+func (TXTRecordSpec) recordKind() RecordKind { return TXT }
+
+func (HINFORecordSpec) recordKind() RecordKind { return HINFO }
+
+func (NAPTRRecordSpec) recordKind() RecordKind { return NAPTR }
+
+func (GenericRecordSpec) recordKind() RecordKind { return Generic }

@@ -70,16 +70,16 @@ func (c *Client) ZoneTasks(zoneID int64) Tasks {
 	return tasks(bam.ChildCollection[Task](c.client, "zones", zoneID, "deployments"))
 }
 
-func (c *Client) submission(parent string, id int64) submission {
-	return submission{
-		collection: bam.ChildCollection[Task](c.client, parent, id, "deployments"),
-		path:       fmt.Sprintf("/api/v2/%s/%d/deployments", parent, id),
-	}
-}
-
 // Selective submits changes to specific resource records or IP addresses.
 // HTTP 202 returns bam.AcceptedError, not a completed or newly created task.
 func (c *Client) Selective(ctx context.Context, spec SelectiveSpec, options ...bam.WriteOption) (Task, error) {
 	s := submission{collection: bam.NewCollection[Task](c.client, "deployments"), path: "/api/v2/deployments"}
 	return s.create(ctx, spec, options...)
+}
+
+func (c *Client) submission(parent string, id int64) submission {
+	return submission{
+		collection: bam.ChildCollection[Task](c.client, parent, id, "deployments"),
+		path:       fmt.Sprintf("/api/v2/%s/%d/deployments", parent, id),
+	}
 }

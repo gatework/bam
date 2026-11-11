@@ -37,6 +37,8 @@ func (t RecordTarget) validate(hostOnly bool) error {
 		if !hostOnly {
 			return nil
 		}
+	default:
+		// Other states are rejected below.
 	}
 	return fmt.Errorf("dns: unsupported target record type")
 }
@@ -76,8 +78,6 @@ type HostRecordSpec struct {
 	UserDefinedFields map[string]string `json:"userDefinedFields,omitempty"`
 }
 
-func (HostRecordSpec) recordKind() RecordKind { return Host }
-
 // MarshalJSON supplies the record and address resource types.
 func (s HostRecordSpec) MarshalJSON() ([]byte, error) {
 	if err := validateRecord(s.Name, s.TTL); err != nil {
@@ -111,8 +111,6 @@ type ExternalHostRecordSpec struct {
 	UserDefinedFields map[string]string `json:"userDefinedFields,omitempty"`
 }
 
-func (ExternalHostRecordSpec) recordKind() RecordKind { return External }
-
 // MarshalJSON supplies the external host discriminator.
 func (s ExternalHostRecordSpec) MarshalJSON() ([]byte, error) {
 	if err := validateRecord(s.Name, s.TTL); err != nil {
@@ -121,3 +119,7 @@ func (s ExternalHostRecordSpec) MarshalJSON() ([]byte, error) {
 	type fields ExternalHostRecordSpec
 	return marshalSpec(string(External), fields(s))
 }
+
+func (HostRecordSpec) recordKind() RecordKind { return Host }
+
+func (ExternalHostRecordSpec) recordKind() RecordKind { return External }

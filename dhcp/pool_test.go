@@ -80,8 +80,7 @@ func TestMACPoolLinkRejectsDifferentMember(t *testing.T) {
 				_, _ = fmt.Fprint(w, reply)
 			})
 			_, err := client.MACMembers(8).Link(context.Background(), 19)
-			var protocol *bam.ProtocolError
-			if !errors.As(err, &protocol) {
+			if _, ok := errors.AsType[*bam.ProtocolError](err); !ok {
 				t.Fatalf("link returned %v, want protocol error", err)
 			}
 		})

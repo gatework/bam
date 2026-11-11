@@ -36,6 +36,7 @@ type Span struct {
 	mode      uint8
 }
 
+// Between constructs an inclusive IPv4 span and retains validation errors until encoding.
 func Between(start, end netip.Addr) Span {
 	return Span{endpoints: ipam.AddressRange{Start: start, End: end}, mode: 1}
 }
@@ -48,6 +49,7 @@ func OffsetPercent(offset int64, percent int) Span {
 	return Span{offset: offset, percent: percent, mode: 3}
 }
 
+// MarshalJSON validates and encodes the RESTful v2 JSON representation.
 func (s Span) MarshalJSON() ([]byte, error) {
 	var value string
 	switch s.mode {
@@ -92,6 +94,7 @@ type RangeSpec struct {
 	HighWaterMark              *int                `json:"highWaterMark,omitempty"`
 }
 
+// MarshalJSON validates and encodes the RESTful v2 JSON representation.
 func (s RangeSpec) MarshalJSON() ([]byte, error) {
 	if _, err := s.Range.MarshalJSON(); err != nil {
 		return nil, err
@@ -104,9 +107,9 @@ func (s RangeSpec) MarshalJSON() ([]byte, error) {
 	}
 	type spec RangeSpec
 	return json.Marshal(struct {
-		Type string `json:"type"`
 		spec
-	}{"IPv4DHCPRange", spec(s)})
+		Type string `json:"type"`
+	}{spec: spec(s), Type: "IPv4DHCPRange"})
 }
 
 // RangeChanges changes a range through a complete read/edit/PUT cycle.
@@ -119,6 +122,7 @@ type RangeChanges struct {
 	HighWaterMark              bam.Field[int]
 }
 
+// Apply validates and applies explicitly set fields to the complete resource document.
 func (c RangeChanges) Apply(d bam.Document) error {
 	if c.Range.IsNull() || c.SplitAroundStaticAddresses.IsNull() || c.ExclusionRanges.IsNull() {
 		return fmt.Errorf("dhcp: range, split setting, and exclusions cannot be null")
@@ -182,9 +186,12 @@ func WithOrphanedAddressState(state ipam.State) bam.WriteOption {
 	}
 }
 
+// Ranges provides typed DHCPv4 range creation under a network.
 type Ranges struct {
 	resource.Collection[Range, RangeSpec, RangeChanges]
 }
+
+// RangeItems provides existing DHCPv4 range operations by global ID.
 type RangeItems struct {
 	resource.Items[Range, RangeChanges]
 }

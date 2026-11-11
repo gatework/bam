@@ -14,10 +14,13 @@ import (
 	"github.com/gatework/bam/internal/resource"
 )
 
+// Client shares the authenticated BAM transport for this domain.
 type Client struct{ client *bam.Client }
 
+// New creates a domain client that shares the supplied BAM transport.
 func New(client *bam.Client) *Client { return &Client{client: client} }
 
+// ACL is an ordered DNS client access-control list.
 type ACL struct {
 	bam.Resource
 	Configuration bam.Reference `json:"configuration"`
@@ -25,11 +28,13 @@ type ACL struct {
 	MatchElements []Element     `json:"matchElements"`
 }
 
+// Spec specifies the fields required to create a resource in this domain.
 type Spec struct {
 	Name          string
 	MatchElements []Element
 }
 
+// MarshalJSON validates and encodes the RESTful v2 JSON representation.
 func (s Spec) MarshalJSON() ([]byte, error) {
 	if strings.TrimSpace(s.Name) == "" {
 		return nil, fmt.Errorf("accesscontrol: acl name is required")
@@ -45,11 +50,13 @@ func (s Spec) MarshalJSON() ([]byte, error) {
 	}{"ACL", s.Name, elements})
 }
 
+// Changes updates explicitly set resource fields while preserving unmodeled data.
 type Changes struct {
 	Name          bam.Field[string]
 	MatchElements bam.Field[[]Element]
 }
 
+// Apply validates and applies explicitly set fields to the complete resource document.
 func (c Changes) Apply(d bam.Document) error {
 	if c.Name.IsNull() || c.MatchElements.IsNull() {
 		return fmt.Errorf("accesscontrol: acl fields cannot be null")
@@ -70,18 +77,26 @@ func (c Changes) Apply(d bam.Document) error {
 	return nil
 }
 
+// Lists provides ACL creation and mutation under a configuration.
 type Lists struct {
 	resource.Collection[ACL, Spec, Changes]
 }
+
+// ListItems provides existing ACL operations by global ID.
 type ListItems struct{ resource.Items[ACL, Changes] }
 
+// Lists selects client access-control lists under the configuration.
 func (c *Client) Lists(configurationID int64) Lists {
 	collection := bam.ChildCollection[ACL](c.client, "configurations", configurationID, "accessControlLists")
 	return Lists{resource.NewCollection[ACL, Spec, Changes](collection, "ACL")}
 }
+
+// GlobalLists selects existing client access-control lists by global resource ID.
 func (c *Client) GlobalLists() ListItems {
 	return ListItems{resource.NewItems[ACL, Changes](bam.NewCollection[ACL](c.client, "accessControlLists"), "ACL")}
 }
+
+// Find requires exactly one resource matching the requested name.
 func (l Lists) Find(ctx context.Context, name string) (ACL, error) {
 	return resource.One(l.All(ctx, bam.ListOptions{Where: bam.Match("name", name), Limit: 2}))
 }

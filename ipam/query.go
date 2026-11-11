@@ -20,6 +20,7 @@ type AddressQuery struct {
 	State           State
 }
 
+// Filter validates the typed selectors and combines them into a BAM filter.
 func (q AddressQuery) Filter() (bam.Filter, error) {
 	var predicates []bam.Filter
 	if q.ConfigurationID < 0 {
@@ -43,9 +44,12 @@ func (q AddressQuery) Filter() (bam.Filter, error) {
 	return bam.And(predicates...), nil
 }
 
+// Search lazily retrieves resources matching the typed query.
 func (a Addresses) Search(ctx context.Context, query AddressQuery, options bam.ListOptions) iter.Seq2[Address, error] {
 	return searchAddresses(ctx, resource.CollectionOf(a.List), query, options)
 }
+
+// Search lazily retrieves resources matching the typed query.
 func (a AddressItems) Search(ctx context.Context, query AddressQuery, options bam.ListOptions) iter.Seq2[Address, error] {
 	return searchAddresses(ctx, resource.CollectionOf(a.List), query, options)
 }
@@ -86,12 +90,15 @@ func (c *Client) LookupIP(ctx context.Context, configurationID int64, address ne
 	return resource.One(c.GlobalAddresses().Search(ctx, AddressQuery{ConfigurationID: configurationID, Address: address}, bam.ListOptions{Limit: 2}))
 }
 
+// FindByAddress requires exactly one resource with the supplied address.
 func (m MACAddresses) FindByAddress(ctx context.Context, address MAC) (MACAddress, error) {
 	if !address.IsValid() {
 		return MACAddress{}, fmt.Errorf("ipam: mac address is required")
 	}
 	return resource.One(m.All(ctx, bam.ListOptions{Where: bam.Match("address", address.String()), Limit: 2}))
 }
+
+// LookupMAC requires exactly one MAC resource with the address in the configuration.
 func (c *Client) LookupMAC(ctx context.Context, configurationID int64, address MAC) (MACAddress, error) {
 	if configurationID <= 0 {
 		return MACAddress{}, fmt.Errorf("ipam: configuration id must be positive")
@@ -118,12 +125,15 @@ func (c *Client) AddressesByMAC(ctx context.Context, configurationID int64, addr
 	}
 }
 
+// FindByPrefix requires exactly one resource with the supplied canonical prefix.
 func (n Networks) FindByPrefix(ctx context.Context, prefix netip.Prefix) (Network, error) {
 	if _, err := prefixFamily(prefix); err != nil {
 		return Network{}, err
 	}
 	return resource.One(n.All(ctx, bam.ListOptions{Where: bam.Match("range", prefix.String()), Limit: 2}))
 }
+
+// FindByPrefix requires exactly one resource with the supplied canonical prefix.
 func (b Blocks) FindByPrefix(ctx context.Context, prefix netip.Prefix) (Block, error) {
 	if _, err := prefixFamily(prefix); err != nil {
 		return Block{}, err

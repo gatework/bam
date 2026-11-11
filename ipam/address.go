@@ -20,6 +20,7 @@ type AddressSpec struct {
 	MACAddress *MACReference `json:"macAddress,omitempty"`
 }
 
+// MarshalJSON validates and encodes the RESTful v2 JSON representation.
 func (s AddressSpec) MarshalJSON() ([]byte, error) {
 	family, err := addressFamily(s.Address)
 	if err != nil {
@@ -33,9 +34,9 @@ func (s AddressSpec) MarshalJSON() ([]byte, error) {
 	}
 	type spec AddressSpec
 	return json.Marshal(struct {
-		Type string `json:"type"`
 		spec
-	}{family + "Address", spec(s)})
+		Type string `json:"type"`
+	}{spec: spec(s), Type: family + "Address"})
 }
 
 // NextAddressSpec selects the next available IPv4 address atomically on BAM.
@@ -46,6 +47,7 @@ type NextAddressSpec struct {
 	MACAddress *MACReference `json:"macAddress,omitempty"`
 }
 
+// MarshalJSON validates and encodes the RESTful v2 JSON representation.
 func (s NextAddressSpec) MarshalJSON() ([]byte, error) {
 	if s.State == "" {
 		s.State = StateStatic
@@ -55,9 +57,9 @@ func (s NextAddressSpec) MarshalJSON() ([]byte, error) {
 	}
 	type spec NextAddressSpec
 	return json.Marshal(struct {
-		Type string `json:"type"`
 		spec
-	}{"IPv4Address", spec(s)})
+		Type string `json:"type"`
+	}{spec: spec(s), Type: "IPv4Address"})
 }
 func validateAssignment(kind string, state State, mac *MACReference) error {
 	if err := validateAssignmentState(kind, state); err != nil {
@@ -85,6 +87,8 @@ func validateAssignmentState(kind string, state State) error {
 		if kind == "IPv4Address" {
 			return nil
 		}
+	default:
+		// Other states are rejected below.
 	}
 	return fmt.Errorf("ipam: state %q cannot be assigned to %s", state, kind)
 }
@@ -98,6 +102,7 @@ type AddressChanges struct {
 	MACAddress bam.Field[MACReference]
 }
 
+// Apply validates and applies explicitly set fields to the complete resource document.
 func (c AddressChanges) Apply(d bam.Document) error {
 	if c.State.IsNull() {
 		return fmt.Errorf("ipam: address state cannot be cleared")
@@ -180,6 +185,8 @@ func (a Addresses) AllocateNext(ctx context.Context, spec NextAddressSpec, optio
 func (a AddressItems) Release(ctx context.Context, id int64, options ...bam.WriteOption) error {
 	return a.Delete(ctx, id, options...)
 }
+
+// Release releases the address allocation without retrying the mutation.
 func (a Addresses) Release(ctx context.Context, id int64, options ...bam.WriteOption) error {
 	return a.Delete(ctx, id, options...)
 }

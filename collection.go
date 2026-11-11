@@ -74,30 +74,6 @@ func validCollection(name string) bool {
 	return true
 }
 
-func (c Collection[T]) check() error {
-	if c.err != nil {
-		return c.err
-	}
-	if c.client == nil {
-		return fmt.Errorf("bam: uninitialized collection")
-	}
-	return nil
-}
-
-func (c Collection[T]) itemPath(id int64) (string, error) {
-	if err := c.check(); err != nil {
-		return "", err
-	}
-	if id <= 0 {
-		return "", fmt.Errorf("bam: resource ID must be positive")
-	}
-	path := c.collection
-	if c.isLinked {
-		path = c.path
-	}
-	return path + "/" + strconv.FormatInt(id, 10), nil
-}
-
 // Get reads the resource with a globally unique ID.
 func (c Collection[T]) Get(ctx context.Context, id int64) (T, error) {
 	path, err := c.itemPath(id)
@@ -202,4 +178,28 @@ func validateResource(document Document, method, path string, expectedID int64) 
 		return &ProtocolError{Method: method, Path: apiPath + "/" + path, Detail: "response resource ID does not match requested ID"}
 	}
 	return nil
+}
+
+func (c Collection[T]) check() error {
+	if c.err != nil {
+		return c.err
+	}
+	if c.client == nil {
+		return fmt.Errorf("bam: uninitialized collection")
+	}
+	return nil
+}
+
+func (c Collection[T]) itemPath(id int64) (string, error) {
+	if err := c.check(); err != nil {
+		return "", err
+	}
+	if id <= 0 {
+		return "", fmt.Errorf("bam: resource ID must be positive")
+	}
+	path := c.collection
+	if c.isLinked {
+		path = c.path
+	}
+	return path + "/" + strconv.FormatInt(id, 10), nil
 }

@@ -28,7 +28,7 @@ func TestCollectionUpdatePreservesDocumentAndExplicitValues(t *testing.T) {
 		}
 		if r.Method != http.MethodPut {
 			t.Errorf("unexpected method %s", r.Method)
-			w.WriteHeader(405)
+			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
 		if r.Header.Get("x-bcn-change-control-comment") != "change 17" {
@@ -102,7 +102,7 @@ func TestCollectionUpdateRejectsUnsafeReplacement(t *testing.T) {
 func TestLinkedCollectionUnlinksNestedResource(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "DELETE" || r.URL.Path != "/api/v2/macPools/12/macAddresses/7" {
+		if r.Method != http.MethodDelete || r.URL.Path != "/api/v2/macPools/12/macAddresses/7" {
 			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
 		}
 		w.WriteHeader(http.StatusNoContent)

@@ -12,12 +12,15 @@ import (
 // List exposes only collection queries, suitable for relationship endpoints.
 type List[T any] struct{ collection bam.Collection[T] }
 
+// NewList constructs read-only iteration over the supplied collection.
 func NewList[T any](collection bam.Collection[T]) List[T] { return List[T]{collection: collection} }
 
+// Page fetches one page without following its next link.
 func (l List[T]) Page(ctx context.Context, options bam.ListOptions) (bam.Page[T], error) {
 	return l.collection.Page(ctx, options)
 }
 
+// All lazily follows bounded pagination while the caller continues iteration.
 func (l List[T]) All(ctx context.Context, options bam.ListOptions) iter.Seq2[T, error] {
 	return l.collection.All(ctx, options)
 }

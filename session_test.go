@@ -52,9 +52,7 @@ func TestSessionsAreIsolatedAndDoNotUseCookies(t *testing.T) {
 	clients := []*bam.Client{testClient(t, handler), testClient(t, handler)}
 	var wg sync.WaitGroup
 	for i, client := range clients {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			username := fmt.Sprintf("user%d", i)
 			session, err := client.Login(context.Background(), username, "password")
 			if err != nil || session.ID != 1 || session.ExpiresAt.IsZero() {
@@ -69,15 +67,13 @@ func TestSessionsAreIsolatedAndDoNotUseCookies(t *testing.T) {
 			}
 			var reads sync.WaitGroup
 			for range 12 {
-				reads.Add(1)
-				go func() {
-					defer reads.Done()
+				reads.Go(func() {
 					var result bam.Resource
 					err := client.Do(context.Background(), bam.Request{Method: http.MethodGet, Path: "configurations/1?expectedUser=" + username}, &result)
 					if err != nil {
 						t.Error(err)
 					}
-				}()
+				})
 			}
 			reads.Wait()
 			if err := client.Logout(context.Background()); err != nil {
@@ -86,7 +82,7 @@ func TestSessionsAreIsolatedAndDoNotUseCookies(t *testing.T) {
 			if err := client.Logout(context.Background()); err != nil {
 				t.Error(err)
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	if cookieSeen.Load() {
@@ -148,7 +144,7 @@ func TestTruncatedUnauthorizedResponseStillClearsCredentials(t *testing.T) {
 	}, bam.WithBasicAuth("user", "token"))
 	err := client.Logout(context.Background())
 	var apiErr *bam.APIError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode != 401 || !errors.Is(err, io.ErrUnexpectedEOF) {
+	if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusUnauthorized || !errors.Is(err, io.ErrUnexpectedEOF) {
 		t.Fatalf("HTTP status or read failure lost: %v", err)
 	}
 	if err := client.Logout(context.Background()); err != nil || calls.Load() != 1 {

@@ -20,10 +20,10 @@ func TestACLOrderBindingAndInheritance(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		var body bam.Document
-		if r.Method == "POST" || r.Method == "PUT" {
+		if r.Method == http.MethodPost || r.Method == http.MethodPut {
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 				t.Error(err)
-				w.WriteHeader(400)
+				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
 		}
@@ -36,7 +36,7 @@ func TestACLOrderBindingAndInheritance(t *testing.T) {
 			if !reflect.DeepEqual(got, []string{"!192.0.2.0/24", "any"}) {
 				t.Errorf("match order=%v", got)
 			}
-			w.WriteHeader(201)
+			w.WriteHeader(http.StatusCreated)
 			_, _ = io.WriteString(w, `{"id":11,"type":"ACL","name":"allowed-clients","matchElements":["!192.0.2.0/24","any"]}`)
 		case "GET /api/v2/accessControlLists/11":
 			_, _ = io.WriteString(w, `{"id":11,"type":"ACL","name":"allowed-clients","matchElements":["!192.0.2.0/24","any"],"future":false}`)
@@ -49,7 +49,7 @@ func TestACLOrderBindingAndInheritance(t *testing.T) {
 			if string(body["type"]) != `"DNSOption"` || string(body["name"]) != `"allow-query"` || string(body["value"]) != `["allowed-clients"]` {
 				t.Errorf("binding=%v", body)
 			}
-			w.WriteHeader(201)
+			w.WriteHeader(http.StatusCreated)
 			_, _ = io.WriteString(w, `{"id":12,"type":"DNSOption","name":"allow-query","value":["allowed-clients"],"serverScope":{"id":5}}`)
 		case "GET /api/v2/deploymentOptions/12":
 			_, _ = io.WriteString(w, `{"id":12,"type":"DNSOption","name":"allow-query","value":["allowed-clients"],"serverScope":{"id":5},"future":9007199254740993}`)
@@ -59,10 +59,10 @@ func TestACLOrderBindingAndInheritance(t *testing.T) {
 			}
 			_ = json.NewEncoder(w).Encode(body)
 		case "DELETE /api/v2/deploymentOptions/12", "DELETE /api/v2/accessControlLists/11":
-			w.WriteHeader(204)
+			w.WriteHeader(http.StatusNoContent)
 		default:
 			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
-			w.WriteHeader(404)
+			w.WriteHeader(http.StatusNotFound)
 		}
 	}))
 	t.Cleanup(server.Close)

@@ -1,0 +1,27 @@
+# The root owns HTTP and lossless JSON; domain clients select typed capabilities.
+declared:
+  - .
+  - ./configuration
+  - ./deployment
+  - ./dhcp
+  - ./dns
+  - ./dns/accesscontrol
+  - ./dns/responsepolicy
+  - ./internal/resource
+  - ./ipam
+rules:
+  - name: transport does not import a domain client
+    packages: [.]
+    deny: [./...]
+  - name: shared resource helpers only depend on transport
+    packages: [./internal/resource]
+    only_local: [.]
+  - name: domain clients use transport and typed resource helpers
+    packages: [./configuration, ./deployment, ./dns, ./dns/responsepolicy, ./ipam]
+    only_local: [., ./internal/resource]
+  - name: DHCP composes IPAM address capabilities
+    packages: [./dhcp]
+    only_local: [., ./internal/resource, ./ipam]
+  - name: access control composes DNS references
+    packages: [./dns/accesscontrol]
+    only_local: [., ./internal/resource, ./dns]

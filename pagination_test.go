@@ -87,8 +87,7 @@ func TestMalformedCollectionsDoNotLookEmpty(t *testing.T) {
 		t.Run(body, func(t *testing.T) {
 			client := testClient(t, func(w http.ResponseWriter, r *http.Request) { _, _ = fmt.Fprint(w, body) })
 			_, err := bam.NewCollection[bam.Resource](client, "networks").Page(context.Background(), bam.ListOptions{})
-			var protocol *bam.ProtocolError
-			if !errors.As(err, &protocol) {
+			if _, ok := errors.AsType[*bam.ProtocolError](err); !ok {
 				t.Fatalf("malformed collection accepted: %v", err)
 			}
 		})

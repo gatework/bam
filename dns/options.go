@@ -35,6 +35,7 @@ type OptionSpec struct {
 	ServerScope *bam.Reference
 }
 
+// MarshalJSON validates and encodes the RESTful v2 JSON representation.
 func (s OptionSpec) MarshalJSON() ([]byte, error) {
 	if (strings.TrimSpace(s.Name) == "") == (s.Definition == nil) {
 		return nil, fmt.Errorf("dns: option requires either a name or a positive definition id")
@@ -64,6 +65,7 @@ type OptionChanges struct {
 	ServerScope bam.Field[bam.Reference]
 }
 
+// Apply validates and applies explicitly set fields to the complete resource document.
 func (c OptionChanges) Apply(d bam.Document) error {
 	if c.Value.IsNull() {
 		return fmt.Errorf("dns: delete an option to restore inheritance")
@@ -80,12 +82,17 @@ func (c OptionChanges) Apply(d bam.Document) error {
 	return c.ServerScope.Apply(d, "serverScope")
 }
 
+// Options provides typed deployment option operations under a parent resource.
 type Options struct {
 	resource.Collection[Option, OptionSpec, OptionChanges]
 }
+
+// OptionItems provides operations on existing deployment options by global ID.
 type OptionItems struct {
 	resource.Items[Option, OptionChanges]
 }
+
+// OptionDefinitions provides read-only DNS deployment option definition discovery.
 type OptionDefinitions struct {
 	resource.Reader[OptionDefinition]
 }
@@ -103,24 +110,37 @@ func (o Options) RestoreInheritance(ctx context.Context, id int64, options ...ba
 	return o.Delete(ctx, id, options...)
 }
 
-func (c *Client) options(parent string, id int64) Options {
-	collection := bam.ChildCollection[Option](c.client, parent, id, "deploymentOptions").WithFilter(bam.Match("type", "DNSOption"))
-	return Options{resource.NewCollection[Option, OptionSpec, OptionChanges](collection, "DNSOption")}
-}
-
+// ConfigurationOptions selects deployment options directly beneath the supplied configuration.
 func (c *Client) ConfigurationOptions(id int64) Options { return c.options("configurations", id) }
-func (c *Client) ViewOptions(id int64) Options          { return c.options("views", id) }
-func (c *Client) ZoneOptions(id int64) Options          { return c.options("zones", id) }
-func (c *Client) ServerOptions(id int64) Options        { return c.options("servers", id) }
-func (c *Client) BlockOptions(id int64) Options         { return c.options("blocks", id) }
-func (c *Client) NetworkOptions(id int64) Options       { return c.options("networks", id) }
 
+// ViewOptions selects deployment options directly beneath the supplied view.
+func (c *Client) ViewOptions(id int64) Options { return c.options("views", id) }
+
+// ZoneOptions selects deployment options directly beneath the supplied zone.
+func (c *Client) ZoneOptions(id int64) Options { return c.options("zones", id) }
+
+// ServerOptions selects deployment options directly beneath the supplied server.
+func (c *Client) ServerOptions(id int64) Options { return c.options("servers", id) }
+
+// BlockOptions selects deployment options directly beneath the supplied block.
+func (c *Client) BlockOptions(id int64) Options { return c.options("blocks", id) }
+
+// NetworkOptions selects deployment options directly beneath the supplied network.
+func (c *Client) NetworkOptions(id int64) Options { return c.options("networks", id) }
+
+// GlobalOptions selects existing deployment options by global resource ID.
 func (c *Client) GlobalOptions() OptionItems {
 	collection := bam.NewCollection[Option](c.client, "deploymentOptions").WithFilter(bam.Match("type", "DNSOption"))
 	return OptionItems{resource.NewItems[Option, OptionChanges](collection, "DNSOption")}
 }
 
+// OptionDefinitions selects read-only option definitions for this domain.
 func (c *Client) OptionDefinitions() OptionDefinitions {
 	collection := bam.NewCollection[OptionDefinition](c.client, "deploymentOptionDefinitions").WithFilter(bam.Match("type", "DNSOptionDefinition"))
 	return OptionDefinitions{resource.NewReader(collection, "DNSOptionDefinition")}
+}
+
+func (c *Client) options(parent string, id int64) Options {
+	collection := bam.ChildCollection[Option](c.client, parent, id, "deploymentOptions").WithFilter(bam.Match("type", "DNSOption"))
+	return Options{resource.NewCollection[Option, OptionSpec, OptionChanges](collection, "DNSOption")}
 }

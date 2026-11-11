@@ -21,10 +21,12 @@ type MACPool struct {
 	InstantDeploymentEnabled bool          `json:"instantDeploymentEnabled"`
 }
 
+// MACPoolSpec specifies metadata for creating a MAC pool.
 type MACPoolSpec struct {
 	Name string `json:"name"`
 }
 
+// MarshalJSON validates and encodes the RESTful v2 JSON representation.
 func (s MACPoolSpec) MarshalJSON() ([]byte, error) {
 	if strings.TrimSpace(s.Name) == "" {
 		return nil, fmt.Errorf("dhcp: mac pool name is required")
@@ -36,11 +38,13 @@ func (s MACPoolSpec) MarshalJSON() ([]byte, error) {
 	}{"MACPool", s.Name, false})
 }
 
+// MACPoolChanges updates explicitly set MAC pool metadata fields.
 type MACPoolChanges struct {
 	Name                     bam.Field[string]
 	InstantDeploymentEnabled bam.Field[bool]
 }
 
+// Apply validates and applies explicitly set fields to the complete resource document.
 func (c MACPoolChanges) Apply(d bam.Document) error {
 	if c.Name.IsNull() {
 		return fmt.Errorf("dhcp: mac pool name cannot be cleared")
@@ -54,9 +58,12 @@ func (c MACPoolChanges) Apply(d bam.Document) error {
 	return errors.Join(c.Name.Apply(d, "name"), c.InstantDeploymentEnabled.Apply(d, "instantDeploymentEnabled"))
 }
 
+// MACPools provides MAC pool creation and mutation under a configuration.
 type MACPools struct {
 	resource.Collection[MACPool, MACPoolSpec, MACPoolChanges]
 }
+
+// MACPoolItems provides existing MAC pool operations by global ID.
 type MACPoolItems struct {
 	resource.Items[MACPool, MACPoolChanges]
 }
@@ -64,9 +71,12 @@ type MACPoolItems struct {
 // MACMembers exposes relationship operations. Unlink never deletes a MAC resource.
 type MACMembers struct{ resource.List[ipam.MACAddress] }
 
+// Get reads and validates the resource with the supplied ID.
 func (m MACMembers) Get(ctx context.Context, id int64) (ipam.MACAddress, error) {
 	return resource.CollectionOf(m.List).Get(ctx, id)
 }
+
+// Link adds a membership relationship without creating the referenced resource.
 func (m MACMembers) Link(ctx context.Context, macID int64, options ...bam.WriteOption) (ipam.MACAddress, error) {
 	if macID <= 0 {
 		return ipam.MACAddress{}, fmt.Errorf("dhcp: mac resource id must be positive")
@@ -85,6 +95,8 @@ func (m MACMembers) Link(ctx context.Context, macID int64, options ...bam.WriteO
 	}
 	return member, nil
 }
+
+// Unlink removes only the membership relationship, preserving the referenced resource.
 func (m MACMembers) Unlink(ctx context.Context, macID int64, options ...bam.WriteOption) error {
 	return resource.CollectionOf(m.List).Delete(ctx, macID, options...)
 }

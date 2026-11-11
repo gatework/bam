@@ -37,7 +37,7 @@ func WithChangeControlComment(comment string) WriteOption {
 
 func writeHeaders(options []WriteOption) (http.Header, error) {
 	if len(options) == 0 {
-		return nil, nil
+		return nil, nil //nolint:nilnil // nil headers mean that no write options were supplied
 	}
 	header := make(http.Header)
 	for _, option := range options {

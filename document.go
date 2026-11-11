@@ -52,9 +52,9 @@ func (d Document) Set(field string, value any) error {
 
 // Clone makes an independent copy, including each raw JSON value.
 func (d Document) Clone() Document {
-	copy := maps.Clone(d)
-	for key, value := range copy {
-		copy[key] = bytes.Clone(value)
+	clone := maps.Clone(d)
+	for key, value := range clone {
+		clone[key] = bytes.Clone(value)
 	}
-	return copy
+	return clone
 }

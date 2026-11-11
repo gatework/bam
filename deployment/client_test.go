@@ -105,6 +105,7 @@ func TestClientSubmissionFailures(t *testing.T) {
 	}{
 		{"pending workflow", http.StatusAccepted, `{"id":77,"type":"WorkflowRequest","state":"PENDING"}`,
 			func(t *testing.T, err error) {
+				t.Helper()
 				var accepted *bam.AcceptedError
 				if !errors.As(err, &accepted) || string(accepted.Resource["type"]) != `"WorkflowRequest"` {
 					t.Fatalf("error = %v, want retained pending workflow", err)
@@ -112,13 +113,14 @@ func TestClientSubmissionFailures(t *testing.T) {
 			}},
 		{"wrong resource", http.StatusCreated, `{"id":77,"type":"WorkflowRequest","state":"PENDING"}`,
 			func(t *testing.T, err error) {
-				var protocol *bam.ProtocolError
-				if !errors.As(err, &protocol) {
+				t.Helper()
+				if _, ok := errors.AsType[*bam.ProtocolError](err); !ok {
 					t.Fatalf("error = %v, want protocol error", err)
 				}
 			}},
 		{"conflict", http.StatusConflict, `{"status":409,"code":"Conflict","message":"already deploying"}`,
 			func(t *testing.T, err error) {
+				t.Helper()
 				var api *bam.APIError
 				if !errors.As(err, &api) || api.StatusCode != http.StatusConflict {
 					t.Fatalf("error = %v, want conflict", err)
@@ -145,6 +147,7 @@ func TestClientSubmissionFailures(t *testing.T) {
 	}
 }
 
+//nolint:tparallel // subtests remain sequential so the final request count covers every invalid call
 func TestClientRejectsInvalidSubmissions(t *testing.T) {
 	t.Parallel()
 	var requests atomic.Int64
