@@ -16,7 +16,9 @@ func newClient(t *testing.T, handler http.HandlerFunc) *dhcp.Client {
 	t.Helper()
 	server := httptest.NewServer(handler)
 	t.Cleanup(server.Close)
-	client, err := bam.New(server.URL)
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	t.Cleanup(transport.CloseIdleConnections)
+	client, err := bam.New(server.URL, bam.WithHTTPClient(&http.Client{Transport: transport}))
 	if err != nil {
 		t.Fatal(err)
 	}
