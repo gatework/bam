@@ -51,7 +51,7 @@ func predicate(field, operator, value string) Filter {
 }
 
 func validField(field string) bool {
-	for _, part := range strings.Split(field, ".") {
+	for part := range strings.SplitSeq(field, ".") {
 		if part == "" {
 			return false
 		}

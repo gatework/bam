@@ -15,12 +15,15 @@ type Element struct {
 	err   error
 }
 
+// Address constructs an ACL element for one unscoped IP address.
 func Address(address netip.Addr) Element {
 	if !address.IsValid() || address.Zone() != "" {
 		return Element{err: fmt.Errorf("accesscontrol: valid unscoped address required")}
 	}
 	return Element{value: address.String()}
 }
+
+// Network constructs an ACL element for one canonical network prefix.
 func Network(prefix netip.Prefix) Element {
 	if !prefix.IsValid() || prefix != prefix.Masked() {
 		return Element{err: fmt.Errorf("accesscontrol: canonical network prefix required")}
@@ -36,11 +39,19 @@ func Named(name string) Element {
 	return Element{value: name}
 }
 
-func Any() Element       { return Element{value: "any"} }
-func None() Element      { return Element{value: "none"} }
+// Any matches every address in an ordered ACL.
+func Any() Element { return Element{value: "any"} }
+
+// None matches no address in an ordered ACL.
+func None() Element { return Element{value: "none"} }
+
+// Localhost matches addresses of the DNS server itself.
 func Localhost() Element { return Element{value: "localhost"} }
+
+// Localnets matches networks directly attached to the DNS server.
 func Localnets() Element { return Element{value: "localnets"} }
 
+// Key constructs an ACL element for the named TSIG key.
 func Key(name string) Element {
 	if !validName(name) {
 		return Element{err: fmt.Errorf("accesscontrol: invalid key name")}
@@ -57,8 +68,8 @@ func Not(element Element) Element {
 	if element.value == "" {
 		return Element{err: fmt.Errorf("accesscontrol: empty match element")}
 	}
-	if strings.HasPrefix(element.value, "!") {
-		element.value = strings.TrimPrefix(element.value, "!")
+	if after, ok := strings.CutPrefix(element.value, "!"); ok {
+		element.value = after
 	} else {
 		element.value = "!" + element.value
 	}
@@ -80,6 +91,7 @@ func validName(name string) bool {
 
 func (e Element) String() string { return e.value }
 
+// MarshalJSON validates and encodes the RESTful v2 JSON representation.
 func (e Element) MarshalJSON() ([]byte, error) {
 	if e.err != nil {
 		return nil, e.err

@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.3.0
+
+- Require Go 1.26 or later and validate Go 1.26.x and 1.27.x patches.
+- Adopt go-standards v1.0.2 through shared formatting, lint, architecture and `make check` gates; runtime dependencies remain standard-library-only.
+- Document typed domain operations and split request preparation and iterator delivery into internal helpers, preserving HTTP, pagination and mutation contracts.
+
+Public Go API names and RESTful v2 capabilities are unchanged. Live appliance acceptance remains separate.
+
 ## v0.2.0
 
 Breaking domain API expansion; module path remains `github.com/gatework/bam`.

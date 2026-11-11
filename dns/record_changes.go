@@ -12,7 +12,7 @@ import (
 // partial PUT body. MetadataChanges can update common fields on any modeled
 // subtype; subtype-specific changes also verify the existing resource type.
 type RecordChanges interface {
-	Apply(bam.Document) error
+	Apply(document bam.Document) error
 	recordChanges()
 }
 
@@ -24,8 +24,6 @@ type MetadataChanges struct {
 	Comment           bam.Field[string]
 	UserDefinedFields bam.Field[map[string]string]
 }
-
-func (MetadataChanges) recordChanges() {}
 
 // Apply changes common fields while preserving the rest of the document.
 func (c MetadataChanges) Apply(d bam.Document) error {
@@ -52,8 +50,6 @@ type HostChanges struct {
 	Addresses     bam.Field[[]netip.Addr]
 	ReverseRecord bam.Field[bool]
 }
-
-func (c HostChanges) changesAddresses() bool { return c.Addresses.IsSet() }
 
 // Apply encodes address changes using BAM 9.6's top-level addresses field.
 func (c HostChanges) Apply(d bam.Document) error {
@@ -110,3 +106,7 @@ func nonnegative(field bam.Field[int32], name string) error {
 	}
 	return nil
 }
+
+func (MetadataChanges) recordChanges() {}
+
+func (c HostChanges) changesAddresses() bool { return c.Addresses.IsSet() }

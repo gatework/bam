@@ -11,6 +11,7 @@ import (
 // A HostRecord can produce A, AAAA and reverse PTR records.
 type RecordKind string
 
+// Supported DNS record resource kinds.
 const (
 	Host     RecordKind = "HostRecord"
 	Alias    RecordKind = "AliasRecord"

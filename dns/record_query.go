@@ -91,23 +91,31 @@ func (c *Client) RecordsByIP(ctx context.Context, configurationID int64, address
 				yield(Record{}, fmt.Errorf("dns: address query returned an invalid resource id"))
 				return
 			}
-			for record, err := range c.RecordsForAddress(matched.ID).All(ctx, options) {
-				if err != nil {
-					yield(Record{}, err)
-					return
-				}
-				if record.ID <= 0 {
-					yield(Record{}, fmt.Errorf("dns: record association returned an invalid resource id"))
-					return
-				}
-				if _, exists := seen[record.ID]; exists {
-					continue
-				}
-				seen[record.ID] = struct{}{}
-				if !yield(record, nil) {
-					return
-				}
+			if !c.yieldAddressRecords(ctx, matched.ID, options, seen, yield) {
+				return
 			}
+
 		}
 	}
+}
+
+func (c *Client) yieldAddressRecords(ctx context.Context, addressID int64, options bam.ListOptions, seen map[int64]struct{}, yield func(Record, error) bool) bool {
+	for record, err := range c.RecordsForAddress(addressID).All(ctx, options) {
+		if err != nil {
+			yield(Record{}, err)
+			return false
+		}
+		if record.ID <= 0 {
+			yield(Record{}, fmt.Errorf("dns: record association returned an invalid resource id"))
+			return false
+		}
+		if _, exists := seen[record.ID]; exists {
+			continue
+		}
+		seen[record.ID] = struct{}{}
+		if !yield(record, nil) {
+			return false
+		}
+	}
+	return true
 }

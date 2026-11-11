@@ -182,6 +182,7 @@ func TestTasksWaitTimeoutAndPollingError(t *testing.T) {
 	})
 }
 
+//nolint:tparallel // subtests remain sequential so the final request count covers every invalid call
 func TestTasksWaitRejectsInvalidOptions(t *testing.T) {
 	t.Parallel()
 	var requests atomic.Int64

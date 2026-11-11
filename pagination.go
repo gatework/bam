@@ -123,14 +123,8 @@ func (c Collection[T]) All(ctx context.Context, options ListOptions) iter.Seq2[T
 				yield(zero, err)
 				return
 			}
-			for _, item := range page.Data {
-				if err := ctx.Err(); err != nil {
-					yield(zero, err)
-					return
-				}
-				if !yield(item, nil) {
-					return
-				}
+			if !yieldPage(ctx, page.Data, yield) {
+				return
 			}
 			next := page.Links["next"].Href
 			if next == "" {
@@ -198,4 +192,18 @@ func (c Collection[T]) nextURL(current *url.URL, href string, original url.Value
 	}
 	next.RawQuery = query.Encode()
 	return next, nil
+}
+
+func yieldPage[T any](ctx context.Context, data []T, yield func(T, error) bool) bool {
+	var zero T
+	for _, item := range data {
+		if err := ctx.Err(); err != nil {
+			yield(zero, err)
+			return false
+		}
+		if !yield(item, nil) {
+			return false
+		}
+	}
+	return true
 }

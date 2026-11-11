@@ -3,6 +3,7 @@ package deployment
 // Kind identifies a concrete RESTful v2 deployment resource.
 type Kind string
 
+// Supported deployment kinds.
 const (
 	KindFull         Kind = "FullDeployment"
 	KindDifferential Kind = "DifferentialDeployment"
@@ -14,6 +15,7 @@ const (
 // Service selects one service per server deployment request.
 type Service string
 
+// Services selected for deployment.
 const (
 	DNS    Service = "DNS"
 	DHCPv4 Service = "DHCPv4"
@@ -25,6 +27,7 @@ const (
 // Wait cannot treat them as evidence of either progress or success.
 type State string
 
+// Deployment task lifecycle states returned by BAM.
 const (
 	StatePending               State = "PENDING"
 	StateQueued                State = "QUEUED"

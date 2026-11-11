@@ -10,6 +10,7 @@ import (
 // BatchMode controls batching of selective deployment tasks.
 type BatchMode string
 
+// Selective deployment batching modes.
 const (
 	BatchDisabled BatchMode = "DISABLED"
 	BatchByServer BatchMode = "BATCH_BY_SERVER"
@@ -18,6 +19,7 @@ const (
 // RecordScope controls inclusion of resources related to the selected records.
 type RecordScope string
 
+// Selective deployment record scopes.
 const (
 	RecordScopeRelated  RecordScope = "RELATED"
 	RecordScopeSpecific RecordScope = "SPECIFIC"
@@ -26,6 +28,7 @@ const (
 // DynamicStrategy controls how a selective deployment handles dynamic records.
 type DynamicStrategy string
 
+// Strategies for handling dynamic records in a selective deployment.
 const (
 	DynamicAbort      DynamicStrategy = "ABORT"
 	DynamicSkip       DynamicStrategy = "SKIP"
@@ -68,7 +71,7 @@ func (s SelectiveSpec) MarshalJSON() ([]byte, error) {
 	}
 	type spec SelectiveSpec
 	return json.Marshal(struct {
-		Type Kind `json:"type"`
 		spec
+		Type Kind `json:"type"`
 	}{Type: KindSelective, spec: spec(s)})
 }

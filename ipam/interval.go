@@ -20,6 +20,8 @@ func (r AddressRange) Validate() error {
 	return nil
 }
 func (r AddressRange) String() string { return r.Start.String() + "-" + r.End.String() }
+
+// MarshalJSON validates and encodes the RESTful v2 JSON representation.
 func (r AddressRange) MarshalJSON() ([]byte, error) {
 	if err := r.Validate(); err != nil {
 		return nil, err

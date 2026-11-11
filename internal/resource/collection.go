@@ -9,15 +9,19 @@ import (
 )
 
 // Changes applies a domain-specific update to a complete document.
-type Changes interface{ Apply(bam.Document) error }
+type Changes interface {
+	Apply(document bam.Document) error
+}
 
 // Items manages existing resources. It deliberately has no Create method.
 type Items[T any, U Changes] struct{ Reader[T] }
 
+// NewItems constructs operations on existing resources restricted to the supplied types.
 func NewItems[T any, U Changes](collection bam.Collection[T], kinds ...string) Items[T, U] {
 	return Items[T, U]{Reader: NewReader(collection, kinds...)}
 }
 
+// Update reads the complete resource and applies typed changes without retrying the mutation.
 func (r Items[T, U]) Update(ctx context.Context, id int64, changes U, options ...bam.WriteOption) (T, error) {
 	return r.collection.Update(ctx, id, func(document bam.Document) error {
 		if err := r.checkType(document); err != nil {
@@ -40,10 +44,12 @@ func (r Items[T, U]) Delete(ctx context.Context, id int64, options ...bam.WriteO
 // Collection adds type-safe creation at a supported parent scope.
 type Collection[T any, S any, U Changes] struct{ Items[T, U] }
 
+// NewCollection constructs typed creation and existing-resource operations for a parent scope.
 func NewCollection[T any, S any, U Changes](collection bam.Collection[T], kinds ...string) Collection[T, S, U] {
 	return Collection[T, S, U]{Items: NewItems[T, U](collection, kinds...)}
 }
 
+// Create creates one typed resource without retrying the mutation.
 func (r Collection[T, S, U]) Create(ctx context.Context, spec S, options ...bam.WriteOption) (T, error) {
 	var zero T
 	// Validate the discriminator before the mutation as well as in its reply.

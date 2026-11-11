@@ -17,6 +17,7 @@ type BlockSpec struct {
 	DefaultView                 *bam.Reference `json:"defaultView,omitempty"`
 }
 
+// MarshalJSON validates and encodes the RESTful v2 JSON representation.
 func (s BlockSpec) MarshalJSON() ([]byte, error) {
 	family, err := prefixFamily(s.Range)
 	if err != nil {
@@ -30,8 +31,8 @@ func (s BlockSpec) MarshalJSON() ([]byte, error) {
 	}
 	type spec BlockSpec
 	return json.Marshal(struct {
-		Type string `json:"type"`
 		spec
+		Type string `json:"type"`
 	}{Type: family + "Block", spec: spec(s)})
 }
 
@@ -46,6 +47,7 @@ type NetworkSpec struct {
 	DefaultView                 *bam.Reference `json:"defaultView,omitempty"`
 }
 
+// MarshalJSON validates and encodes the RESTful v2 JSON representation.
 func (s NetworkSpec) MarshalJSON() ([]byte, error) {
 	family, err := prefixFamily(s.Range)
 	if err != nil {
@@ -62,8 +64,8 @@ func (s NetworkSpec) MarshalJSON() ([]byte, error) {
 	}
 	type spec NetworkSpec
 	return json.Marshal(struct {
-		Type string `json:"type"`
 		spec
+		Type string `json:"type"`
 	}{Type: family + "Network", spec: spec(s)})
 }
 
@@ -75,6 +77,7 @@ type BlockChanges struct {
 	DefaultView                 bam.Field[bam.Reference]
 }
 
+// Apply validates and applies explicitly set fields to the complete resource document.
 func (c BlockChanges) Apply(d bam.Document) error {
 	if err := validatePrefixChange(d, c.Range); err != nil {
 		return err
@@ -99,6 +102,7 @@ type NetworkChanges struct {
 	DefaultView                 bam.Field[bam.Reference]
 }
 
+// Apply validates and applies explicitly set fields to the complete resource document.
 func (c NetworkChanges) Apply(d bam.Document) error {
 	if err := validatePrefixChange(d, c.Range); err != nil {
 		return err

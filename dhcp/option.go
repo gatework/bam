@@ -44,16 +44,16 @@ type ClientOptionSpec struct {
 	Value       bam.Value      `json:"value"`
 }
 
-func (ClientOptionSpec) optionSpec() {}
+// MarshalJSON validates and encodes the RESTful v2 JSON representation.
 func (s ClientOptionSpec) MarshalJSON() ([]byte, error) {
 	if err := validateOption(s.Name, s.Code, s.Definition, s.ServerScope, s.Value); err != nil {
 		return nil, err
 	}
 	type spec ClientOptionSpec
 	return json.Marshal(struct {
-		Type string `json:"type"`
 		spec
-	}{"DHCPv4ClientOption", spec(s)})
+		Type string `json:"type"`
+	}{spec: spec(s), Type: "DHCPv4ClientOption"})
 }
 
 // ServiceOptionSpec configures a DHCPv4 server behavior by name or definition ID.
@@ -64,16 +64,16 @@ type ServiceOptionSpec struct {
 	Value       bam.Value      `json:"value"`
 }
 
-func (ServiceOptionSpec) optionSpec() {}
+// MarshalJSON validates and encodes the RESTful v2 JSON representation.
 func (s ServiceOptionSpec) MarshalJSON() ([]byte, error) {
 	if err := validateOption(s.Name, 0, s.Definition, s.ServerScope, s.Value); err != nil {
 		return nil, err
 	}
 	type spec ServiceOptionSpec
 	return json.Marshal(struct {
-		Type string `json:"type"`
 		spec
-	}{"DHCPv4ServiceOption", spec(s)})
+		Type string `json:"type"`
+	}{spec: spec(s), Type: "DHCPv4ServiceOption"})
 }
 
 // RawOptionSpec is the explicit escape hatch for a DHCPv4 configuration statement.
@@ -82,7 +82,7 @@ type RawOptionSpec struct {
 	ServerScope *bam.Reference `json:"serverScope,omitempty"`
 }
 
-func (RawOptionSpec) optionSpec() {}
+// MarshalJSON validates and encodes the RESTful v2 JSON representation.
 func (s RawOptionSpec) MarshalJSON() ([]byte, error) {
 	if strings.TrimSpace(s.Value) == "" {
 		return nil, fmt.Errorf("dhcp: raw option value is required")
@@ -92,9 +92,9 @@ func (s RawOptionSpec) MarshalJSON() ([]byte, error) {
 	}
 	type spec RawOptionSpec
 	return json.Marshal(struct {
-		Type string `json:"type"`
 		spec
-	}{"DHCPv4RawOption", spec(s)})
+		Type string `json:"type"`
+	}{spec: spec(s), Type: "DHCPv4RawOption"})
 }
 func validateOption(name string, code uint8, definition, server *bam.Reference, value bam.Value) error {
 	count := 0
@@ -132,6 +132,7 @@ type OptionChanges struct {
 	ServerScope bam.Field[bam.Reference]
 }
 
+// Apply validates and applies explicitly set fields to the complete resource document.
 func (c OptionChanges) Apply(d bam.Document) error {
 	if c.Value.IsNull() {
 		return fmt.Errorf("dhcp: option value cannot be cleared; delete the override to restore inheritance")
@@ -152,12 +153,17 @@ func (c OptionChanges) Apply(d bam.Document) error {
 	return errors.Join(c.Value.Apply(d, "value"), c.ServerScope.Apply(d, "serverScope"))
 }
 
+// Options provides typed deployment option operations under a parent resource.
 type Options struct {
 	resource.Collection[Option, OptionSpec, OptionChanges]
 }
+
+// OptionItems provides operations on existing deployment options by global ID.
 type OptionItems struct {
 	resource.Items[Option, OptionChanges]
 }
+
+// Definitions provides read-only DHCP option definition discovery.
 type Definitions struct {
 	resource.Reader[OptionDefinition]
 }
@@ -175,3 +181,9 @@ func (o Options) FindByName(ctx context.Context, name string) (Option, error) {
 func (o Options) RestoreInheritance(ctx context.Context, id int64, options ...bam.WriteOption) error {
 	return o.Delete(ctx, id, options...)
 }
+
+func (ClientOptionSpec) optionSpec() {}
+
+func (ServiceOptionSpec) optionSpec() {}
+
+func (RawOptionSpec) optionSpec() {}

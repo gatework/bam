@@ -24,7 +24,7 @@ func TestAddressAllocationModes(t *testing.T) {
 	var requests atomic.Int32
 	client := newClient(t, func(w http.ResponseWriter, r *http.Request) {
 		requests.Add(1)
-		if r.Method != "POST" || r.URL.Path != "/api/v2/networks/30/addresses" {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v2/networks/30/addresses" {
 			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
 		}
 		var body map[string]json.RawMessage

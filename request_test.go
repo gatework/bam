@@ -57,12 +57,11 @@ func TestHTTPFailuresAndMalformedSuccess(t *testing.T) {
 				t.Fatalf("error = %v", err)
 			}
 			var apiErr *bam.APIError
-			var protocolErr *bam.ProtocolError
 			if test.apiError {
 				if !errors.As(err, &apiErr) || apiErr.StatusCode != test.status {
 					t.Fatalf("expected actual HTTP status %d, got %v", test.status, err)
 				}
-			} else if !errors.As(err, &protocolErr) {
+			} else if _, ok := errors.AsType[*bam.ProtocolError](err); !ok {
 				t.Fatalf("expected protocol error, got %v", err)
 			}
 		})
@@ -109,8 +108,7 @@ func TestRequestCancellationAndResponseLimit(t *testing.T) {
 		_, _ = fmt.Fprint(w, `{"id":1,"type":"Configuration","name":"too long"}`)
 	}, bam.WithResponseLimit(16))
 	_, err := bam.NewCollection[bam.Resource](limited, "configurations").Get(context.Background(), 1)
-	var protocol *bam.ProtocolError
-	if !errors.As(err, &protocol) {
+	if _, ok := errors.AsType[*bam.ProtocolError](err); !ok {
 		t.Fatalf("response limit not enforced: %v", err)
 	}
 }

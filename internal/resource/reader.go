@@ -15,10 +15,12 @@ type Reader[T any] struct {
 	kinds []string
 }
 
+// NewReader constructs read-only resource operations restricted to the supplied types.
 func NewReader[T any](collection bam.Collection[T], kinds ...string) Reader[T] {
 	return Reader[T]{List: NewList(collection), kinds: slices.Clone(kinds)}
 }
 
+// Get reads and validates the resource with the supplied ID.
 func (r Reader[T]) Get(ctx context.Context, id int64) (T, error) {
 	result, err := r.collection.Get(ctx, id)
 	if err != nil {
@@ -31,21 +33,7 @@ func (r Reader[T]) Get(ctx context.Context, id int64) (T, error) {
 	return result, nil
 }
 
-func (r Reader[T]) checkValue(value T) error {
-	if len(r.kinds) == 0 {
-		return nil
-	}
-	data, err := json.Marshal(value)
-	if err != nil {
-		return fmt.Errorf("bam: inspect resource type: %w", err)
-	}
-	var document bam.Document
-	if err := json.Unmarshal(data, &document); err != nil {
-		return fmt.Errorf("bam: inspect resource type: %w", err)
-	}
-	return r.checkType(document)
-}
-
+// Document reads the complete resource without projecting away unknown fields.
 func (r Reader[T]) Document(ctx context.Context, id int64) (bam.Document, error) {
 	document, err := r.collection.Document(ctx, id)
 	if err != nil {
@@ -69,4 +57,19 @@ func (r Reader[T]) checkType(document bam.Document) error {
 		return fmt.Errorf("bam: unexpected resource type %q", kind)
 	}
 	return nil
+}
+
+func (r Reader[T]) checkValue(value T) error {
+	if len(r.kinds) == 0 {
+		return nil
+	}
+	data, err := json.Marshal(value)
+	if err != nil {
+		return fmt.Errorf("bam: inspect resource type: %w", err)
+	}
+	var document bam.Document
+	if err := json.Unmarshal(data, &document); err != nil {
+		return fmt.Errorf("bam: inspect resource type: %w", err)
+	}
+	return r.checkType(document)
 }

@@ -52,6 +52,7 @@ type ClientID struct {
 // State is an open set so new server-defined read states remain observable.
 type State string
 
+// Address allocation states returned by BAM.
 const (
 	StateUnassigned     State = "UNASSIGNED"
 	StateStatic         State = "STATIC"

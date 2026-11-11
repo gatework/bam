@@ -77,7 +77,7 @@ func TestHostUpdateUsesExplicitReplacementAddresses(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		if r.URL.Path != "/api/v2/resourceRecords/77" {
 			t.Errorf("unexpected association read: %s", r.URL)
-			w.WriteHeader(404)
+			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 		if r.Method == http.MethodGet {
@@ -86,7 +86,7 @@ func TestHostUpdateUsesExplicitReplacementAddresses(t *testing.T) {
 		}
 		if r.Method != http.MethodPut {
 			t.Errorf("method = %s", r.Method)
-			w.WriteHeader(405)
+			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
 		var body bam.Document

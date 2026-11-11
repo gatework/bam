@@ -19,6 +19,7 @@ type ReservationSpec struct {
 	MAC     ipam.MACReference
 }
 
+// MarshalJSON validates and encodes the RESTful v2 JSON representation.
 func (s ReservationSpec) MarshalJSON() ([]byte, error) {
 	if !s.Address.Is4() {
 		return nil, fmt.Errorf("dhcp: reservation requires an ipv4 address")
@@ -33,6 +34,7 @@ type ReservationChanges struct {
 	MAC  bam.Field[ipam.MACReference]
 }
 
+// Apply validates and applies explicitly set fields to the complete resource document.
 func (c ReservationChanges) Apply(d bam.Document) error {
 	if err := requireReservation(d); err != nil {
 		return err
@@ -49,6 +51,7 @@ type Reservations struct {
 	resource.List[ipam.Address]
 }
 
+// Create creates one typed resource without retrying the mutation.
 func (r Reservations) Create(ctx context.Context, spec ReservationSpec, options ...bam.WriteOption) (ipam.Address, error) {
 	result, err := resource.CollectionOf(r.List).Create(ctx, spec, options...)
 	if err != nil {
@@ -59,6 +62,8 @@ func (r Reservations) Create(ctx context.Context, spec ReservationSpec, options 
 	}
 	return result, nil
 }
+
+// Get reads and validates the resource with the supplied ID.
 func (r Reservations) Get(ctx context.Context, id int64) (ipam.Address, error) {
 	document, err := resource.CollectionOf(r.List).Document(ctx, id)
 	if err != nil {
@@ -71,9 +76,13 @@ func (r Reservations) Get(ctx context.Context, id int64) (ipam.Address, error) {
 	err = document.Decode(&result)
 	return result, err
 }
+
+// Update reads the complete resource and applies typed changes without retrying the mutation.
 func (r Reservations) Update(ctx context.Context, id int64, changes ReservationChanges, options ...bam.WriteOption) (ipam.Address, error) {
 	return resource.CollectionOf(r.List).Update(ctx, id, changes.Apply, options...)
 }
+
+// Delete deletes the resource without retrying the mutation.
 func (r Reservations) Delete(ctx context.Context, id int64, options ...bam.WriteOption) error {
 	if _, err := r.Get(ctx, id); err != nil {
 		return err

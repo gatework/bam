@@ -24,7 +24,7 @@ func TestLocalPolicyConfigurationAndExplicitDeployment(t *testing.T) {
 		if r.Method == http.MethodPost || r.Method == http.MethodPut {
 			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 				t.Error(err)
-				w.WriteHeader(400)
+				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
 		}
@@ -33,13 +33,13 @@ func TestLocalPolicyConfigurationAndExplicitDeployment(t *testing.T) {
 			if string(body["type"]) != `"ResponsePolicy"` || string(body["policyType"]) != `"BLOCKLIST"` {
 				t.Errorf("policy body=%v", body)
 			}
-			w.WriteHeader(201)
+			w.WriteHeader(http.StatusCreated)
 			_, _ = io.WriteString(w, `{"id":10,"type":"ResponsePolicy","name":"deny","policyType":"BLOCKLIST"}`)
 		case "POST /api/v2/responsePolicies/10/policyItems":
 			if string(body["name"]) != `"bad.example"` {
 				t.Errorf("item body=%v", body)
 			}
-			w.WriteHeader(201)
+			w.WriteHeader(http.StatusCreated)
 			_, _ = io.WriteString(w, `{"id":20,"type":"ResponsePolicyItem","name":"bad.example"}`)
 		case "GET /api/v2/policyItems/20":
 			_, _ = io.WriteString(w, `{"id":20,"type":"ResponsePolicyItem","name":"bad.example","future":{"large":9007199254740993}}`)
@@ -52,28 +52,28 @@ func TestLocalPolicyConfigurationAndExplicitDeployment(t *testing.T) {
 			if string(body["type"]) != `"ResponsePolicyZone"` || string(body["responsePolicyZoneType"]) != `"LOCAL"` || string(body["responsePolicy"]) != `{"id":10}` {
 				t.Errorf("zone body=%v", body)
 			}
-			w.WriteHeader(201)
+			w.WriteHeader(http.StatusCreated)
 			_, _ = io.WriteString(w, `{"id":30,"type":"ResponsePolicyZone","name":"deny.rpz","responsePolicyZoneType":"LOCAL","responsePolicy":{"id":10}}`)
 		case "POST /api/v2/zones/30/deploymentRoles":
 			if string(body["type"]) != `"DNSDeploymentRole"` || string(body["roleType"]) != `"PRIMARY"` {
 				t.Errorf("role body=%v", body)
 			}
-			w.WriteHeader(201)
+			w.WriteHeader(http.StatusCreated)
 			_, _ = io.WriteString(w, `{"id":40,"type":"DNSDeploymentRole","roleType":"PRIMARY"}`)
 		case "POST /api/v2/servers/5/deployments":
 			deployments.Add(1)
 			if string(body["type"]) != `"FullDeployment"` || string(body["service"]) != `"DNS"` {
 				t.Errorf("deployment body=%v", body)
 			}
-			w.WriteHeader(201)
+			w.WriteHeader(http.StatusCreated)
 			_, _ = io.WriteString(w, `{"id":50,"type":"FullDeployment","state":"QUEUED"}`)
 		case "GET /api/v2/deployments/50":
 			_, _ = io.WriteString(w, `{"id":50,"type":"FullDeployment","state":"COMPLETED"}`)
 		case "DELETE /api/v2/policyItems/20":
-			w.WriteHeader(204)
+			w.WriteHeader(http.StatusNoContent)
 		default:
 			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
-			w.WriteHeader(404)
+			w.WriteHeader(http.StatusNotFound)
 		}
 	}))
 	t.Cleanup(server.Close)
@@ -126,7 +126,7 @@ func TestInvalidPolicyDoesNotMutate(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Error("invalid policy reached server")
-		w.WriteHeader(400)
+		w.WriteHeader(http.StatusBadRequest)
 	}))
 	t.Cleanup(server.Close)
 	c, err := bam.New(server.URL)

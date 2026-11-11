@@ -41,9 +41,12 @@ func (m MAC) String() string {
 	return strings.ToUpper(strings.ReplaceAll(net.HardwareAddr(m.octets[:]).String(), ":", "-"))
 }
 
+// MarshalText encodes the canonical MAC address text.
 func (m MAC) MarshalText() ([]byte, error) {
 	return []byte(m.String()), nil
 }
+
+// UnmarshalText parses and validates the MAC address text.
 func (m *MAC) UnmarshalText(text []byte) error {
 	address, err := ParseMAC(string(text))
 	if err != nil {
@@ -71,6 +74,7 @@ type MACReference struct {
 	PoolID  int64
 }
 
+// MarshalJSON validates and encodes the RESTful v2 JSON representation.
 func (m MACReference) MarshalJSON() ([]byte, error) {
 	if (m.ID > 0) == m.Address.IsValid() || m.ID < 0 || m.PoolID < 0 {
 		return nil, fmt.Errorf("ipam: mac reference requires either a positive id or an address")
@@ -102,6 +106,7 @@ type MACSpec struct {
 	MACPool *bam.Reference `json:"macPool,omitempty"`
 }
 
+// MarshalJSON validates and encodes the RESTful v2 JSON representation.
 func (s MACSpec) MarshalJSON() ([]byte, error) {
 	if !s.Address.IsValid() {
 		return nil, fmt.Errorf("ipam: mac address is required")
@@ -111,9 +116,9 @@ func (s MACSpec) MarshalJSON() ([]byte, error) {
 	}
 	type spec MACSpec
 	return json.Marshal(struct {
-		Type string `json:"type"`
 		spec
-	}{"MACAddress", spec(s)})
+		Type string `json:"type"`
+	}{spec: spec(s), Type: "MACAddress"})
 }
 
 // MACChanges modifies a MAC resource, preserving any unmodeled fields.
@@ -122,6 +127,7 @@ type MACChanges struct {
 	Address bam.Field[MAC]
 }
 
+// Apply validates and applies explicitly set fields to the complete resource document.
 func (c MACChanges) Apply(d bam.Document) error {
 	if c.Address.IsNull() {
 		return fmt.Errorf("ipam: mac address cannot be cleared")

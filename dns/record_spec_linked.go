@@ -11,8 +11,6 @@ type AliasRecordSpec struct {
 	UserDefinedFields map[string]string `json:"userDefinedFields,omitempty"`
 }
 
-func (AliasRecordSpec) recordKind() RecordKind { return Alias }
-
 // MarshalJSON validates the target and supplies the discriminator.
 func (s AliasRecordSpec) MarshalJSON() ([]byte, error) {
 	if err := validateRecord(s.Name, s.TTL); err != nil {
@@ -34,8 +32,6 @@ type MXRecordSpec struct {
 	Priority          int32             `json:"priority"`
 	UserDefinedFields map[string]string `json:"userDefinedFields,omitempty"`
 }
-
-func (MXRecordSpec) recordKind() RecordKind { return MX }
 
 // MarshalJSON validates a mail exchanger and supplies the discriminator.
 func (s MXRecordSpec) MarshalJSON() ([]byte, error) {
@@ -64,8 +60,6 @@ type SRVRecordSpec struct {
 	UserDefinedFields map[string]string `json:"userDefinedFields,omitempty"`
 }
 
-func (SRVRecordSpec) recordKind() RecordKind { return SRV }
-
 // MarshalJSON validates a service endpoint and supplies the discriminator.
 func (s SRVRecordSpec) MarshalJSON() ([]byte, error) {
 	if err := validateRecord(s.Name, s.TTL); err != nil {
@@ -80,3 +74,9 @@ func (s SRVRecordSpec) MarshalJSON() ([]byte, error) {
 	type fields SRVRecordSpec
 	return marshalSpec(string(SRV), fields(s))
 }
+
+func (AliasRecordSpec) recordKind() RecordKind { return Alias }
+
+func (MXRecordSpec) recordKind() RecordKind { return MX }
+
+func (SRVRecordSpec) recordKind() RecordKind { return SRV }

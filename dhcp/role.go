@@ -16,8 +16,10 @@ type Role struct {
 	RoleType      RoleType      `json:"roleType"`
 }
 
+// RoleType identifies the DHCP deployment role assigned to a server interface.
 type RoleType string
 
+// Supported deployment role types.
 const (
 	RolePrimary RoleType = "PRIMARY"
 	RoleNone    RoleType = "NONE"
@@ -31,11 +33,13 @@ type RoleInterface struct {
 	DeploymentRoleInterfaceType string `json:"deploymentRoleInterfaceType,omitempty"`
 }
 
+// RoleSpec specifies a deployment role and its server interfaces.
 type RoleSpec struct {
 	RoleType   RoleType        `json:"roleType"`
 	Interfaces []RoleInterface `json:"interfaces"`
 }
 
+// MarshalJSON validates and encodes the RESTful v2 JSON representation.
 func (s RoleSpec) MarshalJSON() ([]byte, error) {
 	if err := validateRoleType(s.RoleType); err != nil {
 		return nil, err
@@ -45,16 +49,18 @@ func (s RoleSpec) MarshalJSON() ([]byte, error) {
 	}
 	type spec RoleSpec
 	return json.Marshal(struct {
-		Type string `json:"type"`
 		spec
-	}{"DHCPDeploymentRole", spec(s)})
+		Type string `json:"type"`
+	}{spec: spec(s), Type: "DHCPDeploymentRole"})
 }
 
+// RoleChanges updates explicitly set deployment role fields.
 type RoleChanges struct {
 	RoleType   bam.Field[RoleType]
 	Interfaces bam.Field[[]RoleInterface]
 }
 
+// Apply validates and applies explicitly set fields to the complete resource document.
 func (c RoleChanges) Apply(d bam.Document) error {
 	if c.RoleType.IsNull() || c.Interfaces.IsNull() {
 		return fmt.Errorf("dhcp: role type and interfaces cannot be null")
@@ -102,10 +108,15 @@ func validateRoleInterfaces(interfaces []RoleInterface) error {
 	return nil
 }
 
+// Roles provides deployment role creation and mutation under a parent resource.
 type Roles struct {
 	resource.Collection[Role, RoleSpec, RoleChanges]
 }
+
+// RoleItems provides existing deployment role operations by global ID.
 type RoleItems struct {
 	resource.Items[Role, RoleChanges]
 }
+
+// RoleInterfaces provides read-only discovery of interfaces assigned to a role.
 type RoleInterfaces struct{ resource.List[RoleInterface] }

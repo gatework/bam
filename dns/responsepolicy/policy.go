@@ -11,6 +11,7 @@ import (
 // Action is the policyType discriminator within a ResponsePolicy resource.
 type Action string
 
+// Supported response policy actions.
 const (
 	Allowlist Action = "ALLOWLIST"
 	Blackhole Action = "BLACKHOLE"
@@ -26,6 +27,7 @@ func (a Action) validate() error {
 	return fmt.Errorf("responsepolicy: invalid policy action")
 }
 
+// Policy is a domain response policy returned by BAM.
 type Policy struct {
 	bam.Resource
 	Configuration  bam.Reference `json:"configuration"`
@@ -42,6 +44,7 @@ type Spec struct {
 	RedirectTarget string
 }
 
+// MarshalJSON validates and encodes the RESTful v2 JSON representation.
 func (s Spec) MarshalJSON() ([]byte, error) {
 	if strings.TrimSpace(s.Name) == "" {
 		return nil, fmt.Errorf("responsepolicy: policy name is required")
@@ -67,6 +70,7 @@ func (s Spec) MarshalJSON() ([]byte, error) {
 	}{"ResponsePolicy", s.Name, s.Action, s.TTL, s.RedirectTarget})
 }
 
+// Changes updates explicitly set resource fields while preserving unmodeled data.
 type Changes struct {
 	Name           bam.Field[string]
 	Action         bam.Field[Action]
@@ -74,6 +78,7 @@ type Changes struct {
 	RedirectTarget bam.Field[string]
 }
 
+// Apply validates and applies explicitly set fields to the complete resource document.
 func (c Changes) Apply(d bam.Document) error {
 	if c.Name.IsNull() || c.Action.IsNull() || c.TTL.IsNull() || c.RedirectTarget.IsNull() {
 		return fmt.Errorf("responsepolicy: policy fields cannot be null")
@@ -111,6 +116,7 @@ func (c Changes) Apply(d bam.Document) error {
 	return nil
 }
 
+// Item is one entry in a response policy.
 type Item struct{ bam.Resource }
 
 // ItemSpec names a domain or server-supported RPZ trigger. BAM validates its
@@ -120,6 +126,7 @@ type ItemSpec struct {
 	Name string `json:"name"`
 }
 
+// MarshalJSON validates and encodes the RESTful v2 JSON representation.
 func (s ItemSpec) MarshalJSON() ([]byte, error) {
 	if strings.TrimSpace(s.Name) == "" {
 		return nil, fmt.Errorf("responsepolicy: domain name is required")
@@ -130,8 +137,10 @@ func (s ItemSpec) MarshalJSON() ([]byte, error) {
 	}{"ResponsePolicyItem", s.Name})
 }
 
+// ItemChanges updates explicitly set response policy item fields.
 type ItemChanges struct{ Name bam.Field[string] }
 
+// Apply validates and applies explicitly set fields to the complete resource document.
 func (c ItemChanges) Apply(d bam.Document) error {
 	if c.Name.IsNull() {
 		return fmt.Errorf("responsepolicy: domain name cannot be null")
