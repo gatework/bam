@@ -31,7 +31,9 @@ const (
 // Use a type switch on Details when processing mixed record collections.
 // Read projections are not full replacement bodies.
 type Record struct {
-	bam.Resource
+	ID                int64             `json:"id"`
+	Type              string            `json:"type"`
+	Name              string            `json:"name"`
 	Configuration     bam.Reference     `json:"configuration"`
 	AbsoluteName      string            `json:"absoluteName"`
 	TTL               *int64            `json:"ttl"`
@@ -91,7 +93,9 @@ func (r *Record) UnmarshalJSON(data []byte) error {
 
 // Address is an IP address associated with a host record.
 type Address struct {
-	bam.Resource
+	ID      int64      `json:"id"`
+	Type    string     `json:"type"`
+	Name    string     `json:"name"`
 	Address netip.Addr `json:"address"`
 }
 

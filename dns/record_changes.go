@@ -46,9 +46,9 @@ func (c MetadataChanges) Apply(d bam.Document) error {
 // An unset Addresses field preserves the complete existing association set.
 // A host cannot have an empty address set.
 type HostChanges struct {
-	MetadataChanges
-	Addresses     bam.Field[[]netip.Addr]
-	ReverseRecord bam.Field[bool]
+	MetadataChanges MetadataChanges
+	Addresses       bam.Field[[]netip.Addr]
+	ReverseRecord   bam.Field[bool]
 }
 
 // Apply encodes address changes using BAM 9.6's top-level addresses field.
@@ -110,3 +110,5 @@ func nonnegative(field bam.Field[int32], name string) error {
 func (MetadataChanges) recordChanges() {}
 
 func (c HostChanges) changesAddresses() bool { return c.Addresses.IsSet() }
+
+func (HostChanges) recordChanges() {}

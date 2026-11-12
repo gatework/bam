@@ -14,7 +14,7 @@ import (
 // RecordQuery selects records by documented RESTful v2 fields. Empty selectors
 // are omitted. Use the parent Records selector to restrict a query to a zone.
 type RecordQuery struct {
-	bam.ListOptions
+	ListOptions     bam.ListOptions
 	ConfigurationID int64
 	Name            string
 	AbsoluteName    string
@@ -56,7 +56,7 @@ func (r RecordItems) Search(ctx context.Context, query RecordQuery) iter.Seq2[Re
 // Find requires exactly one matching record. Missing and ambiguous matches
 // return bam.ErrNotFound and bam.ErrAmbiguous respectively.
 func (r RecordItems) Find(ctx context.Context, query RecordQuery) (Record, error) {
-	query.Limit = 2
+	query.ListOptions.Limit = 2
 	return resource.One(r.Search(ctx, query))
 }
 

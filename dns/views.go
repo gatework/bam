@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"iter"
 	"strings"
 
 	"github.com/gatework/bam"
@@ -12,7 +13,9 @@ import (
 
 // View is a DNS namespace within a configuration.
 type View struct {
-	bam.Resource
+	ID                              int64             `json:"id"`
+	Type                            string            `json:"type"`
+	Name                            string            `json:"name"`
 	Configuration                   bam.Reference     `json:"configuration"`
 	DeviceRegistrationEnabled       bool              `json:"deviceRegistrationEnabled"`
 	DeviceRegistrationPortalAddress *string           `json:"deviceRegistrationPortalAddress"`
@@ -21,12 +24,12 @@ type View struct {
 
 // Views supports the documented view resource operations.
 type Views struct {
-	resource.Collection[View, ViewSpec, ViewChanges]
+	resources resource.Collection[View, ViewSpec, ViewChanges]
 }
 
 // ViewItems reads and modifies existing views across configurations.
 type ViewItems struct {
-	resource.Items[View, ViewChanges]
+	resources resource.Items[View, ViewChanges]
 }
 
 // Find looks up one view by name within the selected configuration.
@@ -109,4 +112,69 @@ func applyFields(errs ...error) error {
 		}
 	}
 	return nil
+}
+
+// Page fetches one page within the selected collection scope.
+func (v Views) Page(ctx context.Context, options bam.ListOptions) (bam.Page[View], error) {
+	return v.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (v Views) All(ctx context.Context, options bam.ListOptions) iter.Seq2[View, error] {
+	return v.resources.All(ctx, options)
+}
+
+// Get reads and validates an existing resource by ID.
+func (v Views) Get(ctx context.Context, id int64) (View, error) {
+	return v.resources.Get(ctx, id)
+}
+
+// Document reads the complete representation without field projection.
+func (v Views) Document(ctx context.Context, id int64) (bam.Document, error) {
+	return v.resources.Document(ctx, id)
+}
+
+// Update applies typed changes to the complete document without retrying writes.
+func (v Views) Update(ctx context.Context, id int64, changes ViewChanges, options ...bam.WriteOption) (View, error) {
+	return v.resources.Update(ctx, id, changes, options...)
+}
+
+// Delete removes an existing resource without retrying the write.
+func (v Views) Delete(ctx context.Context, id int64, options ...bam.WriteOption) error {
+	return v.resources.Delete(ctx, id, options...)
+}
+
+// Create submits a typed specification within the selected parent scope.
+func (v Views) Create(ctx context.Context, spec ViewSpec, options ...bam.WriteOption) (View, error) {
+	return v.resources.Create(ctx, spec, options...)
+}
+
+// Page fetches one page within the selected collection scope.
+func (v ViewItems) Page(ctx context.Context, options bam.ListOptions) (bam.Page[View], error) {
+	return v.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (v ViewItems) All(ctx context.Context, options bam.ListOptions) iter.Seq2[View, error] {
+	return v.resources.All(ctx, options)
+}
+
+// Get reads and validates an existing resource by ID.
+func (v ViewItems) Get(ctx context.Context, id int64) (View, error) {
+	return v.resources.Get(ctx, id)
+}
+
+// Document reads the complete representation without field projection.
+func (v ViewItems) Document(ctx context.Context, id int64) (bam.Document, error) {
+	return v.resources.Document(ctx, id)
+}
+
+// Update applies typed changes to the complete document without retrying writes.
+func (v ViewItems) Update(ctx context.Context, id int64, changes ViewChanges, options ...bam.WriteOption) (View, error) {
+	return v.resources.Update(ctx, id, changes, options...)
+}
+
+// Delete removes an existing resource without retrying the write.
+func (v ViewItems) Delete(ctx context.Context, id int64, options ...bam.WriteOption) error {
+	return v.resources.Delete(ctx, id, options...)
 }

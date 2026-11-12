@@ -1,9 +1,11 @@
 package dhcp
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"iter"
 
 	"github.com/gatework/bam"
 	"github.com/gatework/bam/internal/resource"
@@ -11,7 +13,9 @@ import (
 
 // Role determines a server's responsibility for DHCP in a block or network.
 type Role struct {
-	bam.Resource
+	ID            int64         `json:"id"`
+	Type          string        `json:"type"`
+	Name          string        `json:"name"`
 	Configuration bam.Reference `json:"configuration"`
 	RoleType      RoleType      `json:"roleType"`
 }
@@ -110,13 +114,88 @@ func validateRoleInterfaces(interfaces []RoleInterface) error {
 
 // Roles provides deployment role creation and mutation under a parent resource.
 type Roles struct {
-	resource.Collection[Role, RoleSpec, RoleChanges]
+	resources resource.Collection[Role, RoleSpec, RoleChanges]
 }
 
 // RoleItems provides existing deployment role operations by global ID.
 type RoleItems struct {
-	resource.Items[Role, RoleChanges]
+	resources resource.Items[Role, RoleChanges]
 }
 
 // RoleInterfaces provides read-only discovery of interfaces assigned to a role.
-type RoleInterfaces struct{ resource.List[RoleInterface] }
+type RoleInterfaces struct{ resources resource.List[RoleInterface] }
+
+// Page fetches one page within the selected collection scope.
+func (r Roles) Page(ctx context.Context, options bam.ListOptions) (bam.Page[Role], error) {
+	return r.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (r Roles) All(ctx context.Context, options bam.ListOptions) iter.Seq2[Role, error] {
+	return r.resources.All(ctx, options)
+}
+
+// Get reads and validates an existing resource by ID.
+func (r Roles) Get(ctx context.Context, id int64) (Role, error) {
+	return r.resources.Get(ctx, id)
+}
+
+// Document reads the complete representation without field projection.
+func (r Roles) Document(ctx context.Context, id int64) (bam.Document, error) {
+	return r.resources.Document(ctx, id)
+}
+
+// Update applies typed changes to the complete document without retrying writes.
+func (r Roles) Update(ctx context.Context, id int64, changes RoleChanges, options ...bam.WriteOption) (Role, error) {
+	return r.resources.Update(ctx, id, changes, options...)
+}
+
+// Delete removes an existing resource without retrying the write.
+func (r Roles) Delete(ctx context.Context, id int64, options ...bam.WriteOption) error {
+	return r.resources.Delete(ctx, id, options...)
+}
+
+// Create submits a typed specification within the selected parent scope.
+func (r Roles) Create(ctx context.Context, spec RoleSpec, options ...bam.WriteOption) (Role, error) {
+	return r.resources.Create(ctx, spec, options...)
+}
+
+// Page fetches one page within the selected collection scope.
+func (r RoleItems) Page(ctx context.Context, options bam.ListOptions) (bam.Page[Role], error) {
+	return r.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (r RoleItems) All(ctx context.Context, options bam.ListOptions) iter.Seq2[Role, error] {
+	return r.resources.All(ctx, options)
+}
+
+// Get reads and validates an existing resource by ID.
+func (r RoleItems) Get(ctx context.Context, id int64) (Role, error) {
+	return r.resources.Get(ctx, id)
+}
+
+// Document reads the complete representation without field projection.
+func (r RoleItems) Document(ctx context.Context, id int64) (bam.Document, error) {
+	return r.resources.Document(ctx, id)
+}
+
+// Update applies typed changes to the complete document without retrying writes.
+func (r RoleItems) Update(ctx context.Context, id int64, changes RoleChanges, options ...bam.WriteOption) (Role, error) {
+	return r.resources.Update(ctx, id, changes, options...)
+}
+
+// Delete removes an existing resource without retrying the write.
+func (r RoleItems) Delete(ctx context.Context, id int64, options ...bam.WriteOption) error {
+	return r.resources.Delete(ctx, id, options...)
+}
+
+// Page fetches one page within the selected collection scope.
+func (r RoleInterfaces) Page(ctx context.Context, options bam.ListOptions) (bam.Page[RoleInterface], error) {
+	return r.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (r RoleInterfaces) All(ctx context.Context, options bam.ListOptions) iter.Seq2[RoleInterface, error] {
+	return r.resources.All(ctx, options)
+}

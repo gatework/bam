@@ -1,4 +1,6 @@
-# The root owns HTTP and lossless JSON; domain clients select typed capabilities.
+# SDK adapter layers, from the protocol kernel outward. These packages implement
+# BAM REST capabilities; they are not an application's pure business domain.
+# See docs/adr/0003-sdk-composition.md for ARC-1/ARC-2 and the public API boundary.
 declared:
   - .
   - ./configuration
@@ -10,18 +12,21 @@ declared:
   - ./internal/resource
   - ./ipam
 rules:
-  - name: transport does not import a domain client
+  - name: protocol kernel does not import SDK adapters
     packages: [.]
     deny: [./...]
   - name: shared resource helpers only depend on transport
     packages: [./internal/resource]
     only_local: [.]
-  - name: domain clients use transport and typed resource helpers
+  - name: endpoint adapters use the protocol kernel and typed resource helpers
     packages: [./configuration, ./deployment, ./dns, ./dns/responsepolicy, ./ipam]
     only_local: [., ./internal/resource]
-  - name: DHCP composes IPAM address capabilities
+  - name: DHCP composition depends inward on IPAM address contracts
     packages: [./dhcp]
     only_local: [., ./internal/resource, ./ipam]
-  - name: access control composes DNS references
+  - name: access control composition depends inward on DNS option contracts
     packages: [./dns/accesscontrol]
     only_local: [., ./internal/resource, ./dns]
+  - name: SDK adapters do not own process filesystem or database access
+    packages: [./configuration, ./deployment, ./dhcp, ./dns/..., ./ipam, ./internal/resource]
+    deny: [os/..., database/sql/..., net/rpc/..., net/smtp]

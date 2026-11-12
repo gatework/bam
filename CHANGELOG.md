@@ -11,6 +11,14 @@
 - Add DHCPv4 NTP, domain search, TFTP server and boot filename option constructors.
 - Reject malformed zone names before HTTP and add bounded parser/value fuzz checks.
 
+### Changed
+
+- Keep public handle implementation fields private while retaining method
+  signatures. Replace concrete embedding in read DTOs and name DNS metadata and
+  pagination composition explicitly. See [migration](docs/migration-v0.4.0.md).
+- Define SDK adapter layers, enforce inward dependencies and check public API
+  encapsulation alongside the existing project gate.
+
 ### Fixed
 
 - Reject explicit JSON null values before DNS/DHCP option writes, while preserving

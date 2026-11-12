@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"iter"
 	"net/netip"
 
 	"github.com/gatework/bam"
@@ -138,12 +139,12 @@ func (c AddressChanges) Apply(d bam.Document) error {
 
 // Addresses manages allocations within a network.
 type Addresses struct {
-	resource.Collection[Address, AddressSpec, AddressChanges]
+	resources resource.Collection[Address, AddressSpec, AddressChanges]
 }
 
 // AddressItems manages existing allocations across networks.
 type AddressItems struct {
-	resource.Items[Address, AddressChanges]
+	resources resource.Items[Address, AddressChanges]
 }
 
 // AssignStatic creates a static allocation, optionally recording its MAC.
@@ -170,7 +171,7 @@ func (a Addresses) Reserve(ctx context.Context, spec AddressSpec, options ...bam
 // AllocateNext submits one allocation request. It does not enumerate free
 // addresses, and never replays a failed write. BAM performs address selection.
 func (a Addresses) AllocateNext(ctx context.Context, spec NextAddressSpec, options ...bam.WriteOption) (Address, error) {
-	result, err := resource.CollectionOf(a.List).Create(ctx, spec, options...)
+	result, err := resource.CollectionOf(a.resources.List).Create(ctx, spec, options...)
 	if err != nil {
 		return result, err
 	}
@@ -189,4 +190,69 @@ func (a AddressItems) Release(ctx context.Context, id int64, options ...bam.Writ
 // Release releases the address allocation without retrying the mutation.
 func (a Addresses) Release(ctx context.Context, id int64, options ...bam.WriteOption) error {
 	return a.Delete(ctx, id, options...)
+}
+
+// Page fetches one page within the selected collection scope.
+func (a Addresses) Page(ctx context.Context, options bam.ListOptions) (bam.Page[Address], error) {
+	return a.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (a Addresses) All(ctx context.Context, options bam.ListOptions) iter.Seq2[Address, error] {
+	return a.resources.All(ctx, options)
+}
+
+// Get reads and validates an existing resource by ID.
+func (a Addresses) Get(ctx context.Context, id int64) (Address, error) {
+	return a.resources.Get(ctx, id)
+}
+
+// Document reads the complete representation without field projection.
+func (a Addresses) Document(ctx context.Context, id int64) (bam.Document, error) {
+	return a.resources.Document(ctx, id)
+}
+
+// Update applies typed changes to the complete document without retrying writes.
+func (a Addresses) Update(ctx context.Context, id int64, changes AddressChanges, options ...bam.WriteOption) (Address, error) {
+	return a.resources.Update(ctx, id, changes, options...)
+}
+
+// Delete removes an existing resource without retrying the write.
+func (a Addresses) Delete(ctx context.Context, id int64, options ...bam.WriteOption) error {
+	return a.resources.Delete(ctx, id, options...)
+}
+
+// Create submits a typed specification within the selected parent scope.
+func (a Addresses) Create(ctx context.Context, spec AddressSpec, options ...bam.WriteOption) (Address, error) {
+	return a.resources.Create(ctx, spec, options...)
+}
+
+// Page fetches one page within the selected collection scope.
+func (a AddressItems) Page(ctx context.Context, options bam.ListOptions) (bam.Page[Address], error) {
+	return a.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (a AddressItems) All(ctx context.Context, options bam.ListOptions) iter.Seq2[Address, error] {
+	return a.resources.All(ctx, options)
+}
+
+// Get reads and validates an existing resource by ID.
+func (a AddressItems) Get(ctx context.Context, id int64) (Address, error) {
+	return a.resources.Get(ctx, id)
+}
+
+// Document reads the complete representation without field projection.
+func (a AddressItems) Document(ctx context.Context, id int64) (bam.Document, error) {
+	return a.resources.Document(ctx, id)
+}
+
+// Update applies typed changes to the complete document without retrying writes.
+func (a AddressItems) Update(ctx context.Context, id int64, changes AddressChanges, options ...bam.WriteOption) (Address, error) {
+	return a.resources.Update(ctx, id, changes, options...)
+}
+
+// Delete removes an existing resource without retrying the write.
+func (a AddressItems) Delete(ctx context.Context, id int64, options ...bam.WriteOption) error {
+	return a.resources.Delete(ctx, id, options...)
 }
