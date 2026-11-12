@@ -1,28 +1,39 @@
 # Changelog
 
-## Unreleased
+## v0.4.0
 
 ### Added
 
-- Find DNS zones by absolute name within a view and local DNS/DHCP options by
-  exact selector and server scope, with immutable constructor-built queries.
-- Find DHCP reservations by IP or MAC, MAC pools by name and DHCP ranges by
-  endpoints or containment. Observe addresses reported as DHCP_LEASED.
+- Find ordinary DNS zones by absolute name within a view, including nested and
+  multi-label zones, without crossing views or choosing an ambiguous match.
+- Find local DNS/DHCP options by name or definition and exact server scope;
+  DHCP client options can also be selected by RFC code.
+- Find DHCP reservations by IP or MAC, MAC pools by name, and DHCP ranges by
+  endpoints or containment. Observe network addresses in `DHCP_LEASED` state
+  with their reported client identifiers and lease timestamps.
 - Add DHCPv4 NTP, domain search, TFTP server and boot filename option constructors.
-- Reject malformed zone names before HTTP and add bounded parser/value fuzz checks.
 
 ### Changed
 
-- Keep public handle implementation fields private while retaining method
-  signatures. Replace concrete embedding in read DTOs and name DNS metadata and
-  pagination composition explicitly. See [migration](docs/migration-v0.4.0.md).
-- Define SDK adapter layers, enforce inward dependencies and check public API
-  encapsulation alongside the existing project gate.
+- Keep public handle implementations private and declare supported operations
+  explicitly. Existing method signatures are retained; direct embedded-field
+  access changes. Read DTOs expose ID/type/name directly and DNS metadata and
+  pagination use named fields. See [migration](docs/migration-v0.4.0.md).
+- Construct immutable DNS/DHCP option queries by name, definition or client code;
+  reject invalid inputs during construction and unset queries before HTTP.
+- Document SDK adapter layers and enforce their inward dependencies. Add an API
+  encapsulation check and bounded parser/value fuzz smoke tests to `make check`.
 
 ### Fixed
 
-- Reject explicit JSON null values before DNS/DHCP option writes, while preserving
-  false, zero, empty arrays and untouched fields. Delete overrides to restore inheritance.
+- Reject zone lookup names with empty labels, including two trailing dots, before
+  HTTP; reject malformed names in hierarchy responses as protocol errors.
+- Reject explicit JSON null option values before DNS/DHCP mutations, including
+  typed nil values. Empty arrays, false, zero and untouched fields retain their
+  existing meaning; remove a local override to restore inheritance.
+- Correct the documented minimum-toolchain check to Go 1.26.
+
+Runtime dependencies remain standard-library-only. Live BAM acceptance is separate.
 
 ## v0.3.0
 
