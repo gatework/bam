@@ -119,8 +119,8 @@ func validateOption(name string, code uint8, definition, server *bam.Reference, 
 	if server != nil && server.ID <= 0 {
 		return fmt.Errorf("dhcp: server scope requires a positive id")
 	}
-	if value.IsZero() {
-		return fmt.Errorf("dhcp: option value is required")
+	if value.IsZero() || value.IsNull() {
+		return fmt.Errorf("dhcp: a non-null option value is required")
 	}
 	return nil
 }
@@ -137,8 +137,8 @@ func (c OptionChanges) Apply(d bam.Document) error {
 	if c.Value.IsNull() {
 		return fmt.Errorf("dhcp: option value cannot be cleared; delete the override to restore inheritance")
 	}
-	if value, ok := c.Value.Value(); ok && value.IsZero() {
-		return fmt.Errorf("dhcp: option value is unset")
+	if value, ok := c.Value.Value(); ok && (value.IsZero() || value.IsNull()) {
+		return fmt.Errorf("dhcp: a non-null option value is required")
 	}
 	if scope, ok := c.ServerScope.Value(); ok && scope.ID <= 0 {
 		return fmt.Errorf("dhcp: server scope requires a positive id")

@@ -43,8 +43,8 @@ func (s OptionSpec) MarshalJSON() ([]byte, error) {
 	if s.Definition != nil && s.Definition.ID <= 0 {
 		return nil, fmt.Errorf("dns: option definition requires a positive id")
 	}
-	if s.Value.IsZero() {
-		return nil, fmt.Errorf("dns: option value is required")
+	if s.Value.IsZero() || s.Value.IsNull() {
+		return nil, fmt.Errorf("dns: a non-null option value is required")
 	}
 	if s.ServerScope != nil && s.ServerScope.ID <= 0 {
 		return nil, fmt.Errorf("dns: server scope requires a positive id")
@@ -70,8 +70,8 @@ func (c OptionChanges) Apply(d bam.Document) error {
 	if c.Value.IsNull() {
 		return fmt.Errorf("dns: delete an option to restore inheritance")
 	}
-	if value, ok := c.Value.Value(); ok && value.IsZero() {
-		return fmt.Errorf("dns: option value is required")
+	if value, ok := c.Value.Value(); ok && (value.IsZero() || value.IsNull()) {
+		return fmt.Errorf("dns: a non-null option value is required")
 	}
 	if scope, ok := c.ServerScope.Value(); ok && scope.ID <= 0 {
 		return fmt.Errorf("dns: server scope requires a positive id")

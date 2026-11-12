@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Reject explicit JSON null values before DNS/DHCP option writes, while preserving
+  false, zero, empty arrays and untouched fields. Delete overrides to restore inheritance.
+
 ## v0.3.0
 
 - Require Go 1.26 or later and validate Go 1.26.x and 1.27.x patches.
