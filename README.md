@@ -7,12 +7,15 @@ REST v1 compatibility layer.
 Install:
 
 ```sh
-go get github.com/gatework/bam@v0.3.0
+go get github.com/gatework/bam@v0.4.0
 ```
 
-Version `v0.2.0` changes the domain API from `v0.1.0`; the examples below describe
-the new typed API. The module path remains `github.com/gatework/bam`. See the
-[migration decision](docs/adr/0002-typed-domain-capabilities.md) for the API changes.
+Version `v0.4.0` makes handle implementations private and adds immutable option
+queries. Existing handle method signatures and HTTP contracts are retained;
+direct access to former embedded fields requires the
+[v0.4.0 migration](docs/migration-v0.4.0.md). The module path remains
+`github.com/gatework/bam`. The earlier
+[typed API decision](docs/adr/0002-typed-domain-capabilities.md) covers v0.1 migration.
 
 ## Domains
 
@@ -24,7 +27,7 @@ the new typed API. The module path remains `github.com/gatework/bam`. See the
 | `dns/responsepolicy` | Domain response policies, policy items and local RPZs |
 | `dns/accesscontrol` | Ordered client IP/CIDR ACLs and query/recursion access options |
 | `ipam` | Blocks, networks, static assignments, administrative reservations, next-address allocation, MAC resources and IP/MAC queries |
-| `dhcp` | DHCPv4 ranges, reservations, MAC pool membership, options and roles |
+| `dhcp` | DHCPv4 ranges, reservations, MAC pool membership, lease observations, options and roles |
 | `deployment` | Server/interface discovery, explicit deployment submission and bounded task observation |
 
 The protocol baseline is **BAM 9.6**. Resource contracts come from a preserved
@@ -111,7 +114,11 @@ _, err := dns.New(client).Records(zoneID).Update(ctx, recordID, dns.HostChanges{
 ```
 
 [DNS documentation](dns/README.md) describes record variants, complete host-address
-preservation and subtype-specific updates. `bam.Collection` and `Client.Do` remain
+preservation, view-scoped absolute zone lookup and subtype-specific updates.
+[DHCP documentation](dhcp/README.md) covers reservation lookup, range discovery,
+lease observations and common client options. Both domains support exact local
+option lookup with a server scope, including an all-server override.
+`bam.Collection` and `Client.Do` remain
 explicit low-level extension points; their existence does not establish support
 for an unmodeled operation.
 
@@ -152,7 +159,7 @@ credentials or live mutations:
 go test -race -shuffle=on -timeout 60s ./...
 go vet ./...
 go build ./...
-GOTOOLCHAIN=go1.23.0 GOWORK=off go test -timeout 60s ./...
+GOTOOLCHAIN=go1.26.0 GOWORK=off go test -timeout 60s ./...
 ```
 
 Redirects and cross-origin or scope-changing pagination are rejected. TLS

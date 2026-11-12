@@ -1,6 +1,9 @@
 package ipam
 
 import (
+	"context"
+	"iter"
+
 	"github.com/gatework/bam"
 	"github.com/gatework/bam/internal/resource"
 )
@@ -63,20 +66,150 @@ func (c *Client) AddressesForMAC(macID int64) AddressLinks {
 
 // Blocks and Networks expose typed creation only at a parent scope.
 type Blocks struct {
-	resource.Collection[Block, BlockSpec, BlockChanges]
+	resources resource.Collection[Block, BlockSpec, BlockChanges]
 }
 
 // Networks provides typed network creation under an IP block.
 type Networks struct {
-	resource.Collection[Network, NetworkSpec, NetworkChanges]
+	resources resource.Collection[Network, NetworkSpec, NetworkChanges]
 }
 
 // BlockItems and NetworkItems operate on existing resources by global ID.
 type BlockItems struct {
-	resource.Items[Block, BlockChanges]
+	resources resource.Items[Block, BlockChanges]
 }
 
 // NetworkItems provides existing network operations by global ID.
 type NetworkItems struct {
-	resource.Items[Network, NetworkChanges]
+	resources resource.Items[Network, NetworkChanges]
+}
+
+// Page fetches one page within the selected collection scope.
+func (b Blocks) Page(ctx context.Context, options bam.ListOptions) (bam.Page[Block], error) {
+	return b.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (b Blocks) All(ctx context.Context, options bam.ListOptions) iter.Seq2[Block, error] {
+	return b.resources.All(ctx, options)
+}
+
+// Get reads and validates an existing resource by ID.
+func (b Blocks) Get(ctx context.Context, id int64) (Block, error) {
+	return b.resources.Get(ctx, id)
+}
+
+// Document reads the complete representation without field projection.
+func (b Blocks) Document(ctx context.Context, id int64) (bam.Document, error) {
+	return b.resources.Document(ctx, id)
+}
+
+// Update applies typed changes to the complete document without retrying writes.
+func (b Blocks) Update(ctx context.Context, id int64, changes BlockChanges, options ...bam.WriteOption) (Block, error) {
+	return b.resources.Update(ctx, id, changes, options...)
+}
+
+// Delete removes an existing resource without retrying the write.
+func (b Blocks) Delete(ctx context.Context, id int64, options ...bam.WriteOption) error {
+	return b.resources.Delete(ctx, id, options...)
+}
+
+// Create submits a typed specification within the selected parent scope.
+func (b Blocks) Create(ctx context.Context, spec BlockSpec, options ...bam.WriteOption) (Block, error) {
+	return b.resources.Create(ctx, spec, options...)
+}
+
+// Page fetches one page within the selected collection scope.
+func (n Networks) Page(ctx context.Context, options bam.ListOptions) (bam.Page[Network], error) {
+	return n.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (n Networks) All(ctx context.Context, options bam.ListOptions) iter.Seq2[Network, error] {
+	return n.resources.All(ctx, options)
+}
+
+// Get reads and validates an existing resource by ID.
+func (n Networks) Get(ctx context.Context, id int64) (Network, error) {
+	return n.resources.Get(ctx, id)
+}
+
+// Document reads the complete representation without field projection.
+func (n Networks) Document(ctx context.Context, id int64) (bam.Document, error) {
+	return n.resources.Document(ctx, id)
+}
+
+// Update applies typed changes to the complete document without retrying writes.
+func (n Networks) Update(ctx context.Context, id int64, changes NetworkChanges, options ...bam.WriteOption) (Network, error) {
+	return n.resources.Update(ctx, id, changes, options...)
+}
+
+// Delete removes an existing resource without retrying the write.
+func (n Networks) Delete(ctx context.Context, id int64, options ...bam.WriteOption) error {
+	return n.resources.Delete(ctx, id, options...)
+}
+
+// Create submits a typed specification within the selected parent scope.
+func (n Networks) Create(ctx context.Context, spec NetworkSpec, options ...bam.WriteOption) (Network, error) {
+	return n.resources.Create(ctx, spec, options...)
+}
+
+// Page fetches one page within the selected collection scope.
+func (b BlockItems) Page(ctx context.Context, options bam.ListOptions) (bam.Page[Block], error) {
+	return b.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (b BlockItems) All(ctx context.Context, options bam.ListOptions) iter.Seq2[Block, error] {
+	return b.resources.All(ctx, options)
+}
+
+// Get reads and validates an existing resource by ID.
+func (b BlockItems) Get(ctx context.Context, id int64) (Block, error) {
+	return b.resources.Get(ctx, id)
+}
+
+// Document reads the complete representation without field projection.
+func (b BlockItems) Document(ctx context.Context, id int64) (bam.Document, error) {
+	return b.resources.Document(ctx, id)
+}
+
+// Update applies typed changes to the complete document without retrying writes.
+func (b BlockItems) Update(ctx context.Context, id int64, changes BlockChanges, options ...bam.WriteOption) (Block, error) {
+	return b.resources.Update(ctx, id, changes, options...)
+}
+
+// Delete removes an existing resource without retrying the write.
+func (b BlockItems) Delete(ctx context.Context, id int64, options ...bam.WriteOption) error {
+	return b.resources.Delete(ctx, id, options...)
+}
+
+// Page fetches one page within the selected collection scope.
+func (n NetworkItems) Page(ctx context.Context, options bam.ListOptions) (bam.Page[Network], error) {
+	return n.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (n NetworkItems) All(ctx context.Context, options bam.ListOptions) iter.Seq2[Network, error] {
+	return n.resources.All(ctx, options)
+}
+
+// Get reads and validates an existing resource by ID.
+func (n NetworkItems) Get(ctx context.Context, id int64) (Network, error) {
+	return n.resources.Get(ctx, id)
+}
+
+// Document reads the complete representation without field projection.
+func (n NetworkItems) Document(ctx context.Context, id int64) (bam.Document, error) {
+	return n.resources.Document(ctx, id)
+}
+
+// Update applies typed changes to the complete document without retrying writes.
+func (n NetworkItems) Update(ctx context.Context, id int64, changes NetworkChanges, options ...bam.WriteOption) (Network, error) {
+	return n.resources.Update(ctx, id, changes, options...)
+}
+
+// Delete removes an existing resource without retrying the write.
+func (n NetworkItems) Delete(ctx context.Context, id int64, options ...bam.WriteOption) error {
+	return n.resources.Delete(ctx, id, options...)
 }

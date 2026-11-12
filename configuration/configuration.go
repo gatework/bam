@@ -3,8 +3,10 @@
 package configuration
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"iter"
 	"strings"
 
 	"github.com/gatework/bam"
@@ -28,13 +30,15 @@ func (c *Client) Configurations() Configurations {
 
 // Configurations manages top-level configuration resources.
 type Configurations struct {
-	resource.Collection[Configuration, Spec, Changes]
+	resources resource.Collection[Configuration, Spec, Changes]
 }
 
 // Configuration is a typed projection of a configuration resource. Update
 // preserves settings outside this projection through a full read/edit/PUT.
 type Configuration struct {
-	bam.Resource
+	ID                 int64   `json:"id"`
+	Type               string  `json:"type"`
+	Name               string  `json:"name"`
 	Description        *string `json:"description"`
 	ConfigurationGroup *string `json:"configurationGroup"`
 }
@@ -81,4 +85,39 @@ func (c Changes) Apply(d bam.Document) error {
 		return err
 	}
 	return c.ConfigurationGroup.Apply(d, "configurationGroup")
+}
+
+// Page fetches one page within the selected collection scope.
+func (c Configurations) Page(ctx context.Context, options bam.ListOptions) (bam.Page[Configuration], error) {
+	return c.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (c Configurations) All(ctx context.Context, options bam.ListOptions) iter.Seq2[Configuration, error] {
+	return c.resources.All(ctx, options)
+}
+
+// Get reads and validates an existing resource by ID.
+func (c Configurations) Get(ctx context.Context, id int64) (Configuration, error) {
+	return c.resources.Get(ctx, id)
+}
+
+// Document reads the complete representation without field projection.
+func (c Configurations) Document(ctx context.Context, id int64) (bam.Document, error) {
+	return c.resources.Document(ctx, id)
+}
+
+// Update applies typed changes to the complete document without retrying writes.
+func (c Configurations) Update(ctx context.Context, id int64, changes Changes, options ...bam.WriteOption) (Configuration, error) {
+	return c.resources.Update(ctx, id, changes, options...)
+}
+
+// Delete removes an existing resource without retrying the write.
+func (c Configurations) Delete(ctx context.Context, id int64, options ...bam.WriteOption) error {
+	return c.resources.Delete(ctx, id, options...)
+}
+
+// Create submits a typed specification within the selected parent scope.
+func (c Configurations) Create(ctx context.Context, spec Spec, options ...bam.WriteOption) (Configuration, error) {
+	return c.resources.Create(ctx, spec, options...)
 }

@@ -46,12 +46,12 @@ func (q AddressQuery) Filter() (bam.Filter, error) {
 
 // Search lazily retrieves resources matching the typed query.
 func (a Addresses) Search(ctx context.Context, query AddressQuery, options bam.ListOptions) iter.Seq2[Address, error] {
-	return searchAddresses(ctx, resource.CollectionOf(a.List), query, options)
+	return searchAddresses(ctx, resource.CollectionOf(a.resources.List), query, options)
 }
 
 // Search lazily retrieves resources matching the typed query.
 func (a AddressItems) Search(ctx context.Context, query AddressQuery, options bam.ListOptions) iter.Seq2[Address, error] {
-	return searchAddresses(ctx, resource.CollectionOf(a.List), query, options)
+	return searchAddresses(ctx, resource.CollectionOf(a.resources.List), query, options)
 }
 func searchAddresses(ctx context.Context, collection bam.Collection[Address], query AddressQuery, options bam.ListOptions) iter.Seq2[Address, error] {
 	filter, filterErr := query.Filter()

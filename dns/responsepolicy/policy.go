@@ -29,7 +29,9 @@ func (a Action) validate() error {
 
 // Policy is a domain response policy returned by BAM.
 type Policy struct {
-	bam.Resource
+	ID             int64         `json:"id"`
+	Type           string        `json:"type"`
+	Name           string        `json:"name"`
 	Configuration  bam.Reference `json:"configuration"`
 	Action         Action        `json:"policyType"`
 	TTL            int64         `json:"ttl"`
@@ -117,7 +119,11 @@ func (c Changes) Apply(d bam.Document) error {
 }
 
 // Item is one entry in a response policy.
-type Item struct{ bam.Resource }
+type Item struct {
+	ID   int64  `json:"id"`
+	Type string `json:"type"`
+	Name string `json:"name"`
+}
 
 // ItemSpec names a domain or server-supported RPZ trigger. BAM validates its
 // naming policy; no implicit wildcard expansion or client-side normalization is

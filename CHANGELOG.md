@@ -1,5 +1,40 @@
 # Changelog
 
+## v0.4.0
+
+### Added
+
+- Find ordinary DNS zones by absolute name within a view, including nested and
+  multi-label zones, without crossing views or choosing an ambiguous match.
+- Find local DNS/DHCP options by name or definition and exact server scope;
+  DHCP client options can also be selected by RFC code.
+- Find DHCP reservations by IP or MAC, MAC pools by name, and DHCP ranges by
+  endpoints or containment. Observe network addresses in `DHCP_LEASED` state
+  with their reported client identifiers and lease timestamps.
+- Add DHCPv4 NTP, domain search, TFTP server and boot filename option constructors.
+
+### Changed
+
+- Keep public handle implementations private and declare supported operations
+  explicitly. Existing method signatures are retained; direct embedded-field
+  access changes. Read DTOs expose ID/type/name directly and DNS metadata and
+  pagination use named fields. See [migration](docs/migration-v0.4.0.md).
+- Construct immutable DNS/DHCP option queries by name, definition or client code;
+  reject invalid inputs during construction and unset queries before HTTP.
+- Document SDK adapter layers and enforce their inward dependencies. Add an API
+  encapsulation check and bounded parser/value fuzz smoke tests to `make check`.
+
+### Fixed
+
+- Reject zone lookup names with empty labels, including two trailing dots, before
+  HTTP; reject malformed names in hierarchy responses as protocol errors.
+- Reject explicit JSON null option values before DNS/DHCP mutations, including
+  typed nil values. Empty arrays, false, zero and untouched fields retain their
+  existing meaning; remove a local override to restore inheritance.
+- Correct the documented minimum-toolchain check to Go 1.26.
+
+Runtime dependencies remain standard-library-only. Live BAM acceptance is separate.
+
 ## v0.3.0
 
 - Require Go 1.26 or later and validate Go 1.26.x and 1.27.x patches.

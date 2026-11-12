@@ -4,6 +4,7 @@
 | --- | --- |
 | Configuration | Administrative container for IP space, DNS views and managed resources. Required scope for unambiguous cross-network IP/MAC lookups. |
 | View / Zone | A DNS namespace within a configuration / a namespace beneath a view or another zone. Ordinary zones and response-policy zones are distinct resource types. |
+| Absolute zone lookup | Resolve an ordinary zone's complete DNS name within a specified view, following matching parent zones. The same name in another view is a different resource. |
 | Resource record | A DNS record in a zone. A host record associates a name with IP addresses; its reverse-record setting controls PTR generation. |
 | Block / Network | An IPv4 or IPv6 address-space container / a resource beneath a block containing individual addresses and DHCP ranges. |
 | Static allocation | An address in `STATIC` state, optionally associated with a MAC. It does not by itself create a DHCP reservation. |
@@ -18,6 +19,7 @@
 | Local RPZ | A `LOCAL` response-policy zone linking a response policy to a view. DNS deployment roles assign server responsibility. |
 | Client ACL | An ordered list of address, CIDR, ACL-name or TSIG-key matches used by DNS query/recursion access options. It is distinct from a domain response policy. |
 | Deployment option | A DNS/DHCP value configured at a scope, optionally limited to a server. Deleting the local override restores inheritance; empty and inherited are different states. |
+| Option query | An immutable value built by a name, definition or DHCP client-code constructor, together with an exact server scope. An unset value is invalid. Scope ID zero means an all-server override, not a search across every scope or an effective inherited value. |
 | Deployment role | Server-interface responsibility for a managed scope. Defining a role and deploying its configuration are separate operations. |
 | Deployment task | A submitted job applying configuration or validating it. Queued/running does not mean completed; waiting can end without cancelling the task. |
 | Workflow request | A pending change returned with HTTP 202. It is not a completed resource mutation or an instruction to retry. |

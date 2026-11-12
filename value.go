@@ -47,6 +47,10 @@ func IntValue(value int64) Value { return Value{data: []byte(strconv.FormatInt(v
 // IsZero reports whether no JSON value has been supplied.
 func (v Value) IsZero() bool { return len(v.data) == 0 }
 
+// IsNull reports an explicitly supplied JSON null, including a typed nil passed
+// to ValueOf. An unset Value is distinct from null and reports false.
+func (v Value) IsNull() bool { return bytes.Equal(bytes.TrimSpace(v.data), []byte("null")) }
+
 // MarshalJSON returns an independent JSON representation. An unset value
 // encodes as null; request specifications reject it where a value is required.
 func (v Value) MarshalJSON() ([]byte, error) {

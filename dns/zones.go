@@ -3,6 +3,7 @@ package dns
 import (
 	"context"
 	"fmt"
+	"iter"
 	"strings"
 
 	"github.com/gatework/bam"
@@ -11,7 +12,9 @@ import (
 
 // Zone is a DNS namespace beneath a view or another zone.
 type Zone struct {
-	bam.Resource
+	ID                   int64             `json:"id"`
+	Type                 string            `json:"type"`
+	Name                 string            `json:"name"`
 	Configuration        bam.Reference     `json:"configuration"`
 	View                 bam.Reference     `json:"view"`
 	AbsoluteName         string            `json:"absoluteName"`
@@ -22,12 +25,12 @@ type Zone struct {
 
 // Zones supports the documented ordinary zone resource operations.
 type Zones struct {
-	resource.Collection[Zone, ZoneSpec, ZoneChanges]
+	resources resource.Collection[Zone, ZoneSpec, ZoneChanges]
 }
 
 // ZoneItems reads and modifies existing ordinary zones across views.
 type ZoneItems struct {
-	resource.Items[Zone, ZoneChanges]
+	resources resource.Items[Zone, ZoneChanges]
 }
 
 // ExternalHostsZone finds the system-managed external-host zone in a view.
@@ -93,4 +96,69 @@ func (c ZoneChanges) Apply(d bam.Document) error {
 		c.DynamicUpdateEnabled.Apply(d, "dynamicUpdateEnabled"),
 		c.UserDefinedFields.Apply(d, "userDefinedFields"),
 	)
+}
+
+// Page fetches one page within the selected collection scope.
+func (z Zones) Page(ctx context.Context, options bam.ListOptions) (bam.Page[Zone], error) {
+	return z.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (z Zones) All(ctx context.Context, options bam.ListOptions) iter.Seq2[Zone, error] {
+	return z.resources.All(ctx, options)
+}
+
+// Get reads and validates an existing resource by ID.
+func (z Zones) Get(ctx context.Context, id int64) (Zone, error) {
+	return z.resources.Get(ctx, id)
+}
+
+// Document reads the complete representation without field projection.
+func (z Zones) Document(ctx context.Context, id int64) (bam.Document, error) {
+	return z.resources.Document(ctx, id)
+}
+
+// Update applies typed changes to the complete document without retrying writes.
+func (z Zones) Update(ctx context.Context, id int64, changes ZoneChanges, options ...bam.WriteOption) (Zone, error) {
+	return z.resources.Update(ctx, id, changes, options...)
+}
+
+// Delete removes an existing resource without retrying the write.
+func (z Zones) Delete(ctx context.Context, id int64, options ...bam.WriteOption) error {
+	return z.resources.Delete(ctx, id, options...)
+}
+
+// Create submits a typed specification within the selected parent scope.
+func (z Zones) Create(ctx context.Context, spec ZoneSpec, options ...bam.WriteOption) (Zone, error) {
+	return z.resources.Create(ctx, spec, options...)
+}
+
+// Page fetches one page within the selected collection scope.
+func (z ZoneItems) Page(ctx context.Context, options bam.ListOptions) (bam.Page[Zone], error) {
+	return z.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (z ZoneItems) All(ctx context.Context, options bam.ListOptions) iter.Seq2[Zone, error] {
+	return z.resources.All(ctx, options)
+}
+
+// Get reads and validates an existing resource by ID.
+func (z ZoneItems) Get(ctx context.Context, id int64) (Zone, error) {
+	return z.resources.Get(ctx, id)
+}
+
+// Document reads the complete representation without field projection.
+func (z ZoneItems) Document(ctx context.Context, id int64) (bam.Document, error) {
+	return z.resources.Document(ctx, id)
+}
+
+// Update applies typed changes to the complete document without retrying writes.
+func (z ZoneItems) Update(ctx context.Context, id int64, changes ZoneChanges, options ...bam.WriteOption) (Zone, error) {
+	return z.resources.Update(ctx, id, changes, options...)
+}
+
+// Delete removes an existing resource without retrying the write.
+func (z ZoneItems) Delete(ctx context.Context, id int64, options ...bam.WriteOption) error {
+	return z.resources.Delete(ctx, id, options...)
 }

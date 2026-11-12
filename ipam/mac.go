@@ -1,9 +1,11 @@
 package ipam
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"iter"
 	"net"
 	"strings"
 
@@ -59,7 +61,9 @@ func (m *MAC) UnmarshalText(text []byte) error {
 // MACAddress is a managed MAC resource. Pool membership is separate from the
 // lifetime of this resource; DHCP exposes explicit pool linking operations.
 type MACAddress struct {
-	bam.Resource
+	ID            int64          `json:"id"`
+	Type          string         `json:"type"`
+	Name          string         `json:"name"`
 	Configuration bam.Reference  `json:"configuration"`
 	Address       MAC            `json:"address"`
 	MACPool       *bam.Reference `json:"macPool"`
@@ -140,13 +144,88 @@ func (c MACChanges) Apply(d bam.Document) error {
 
 // MACAddresses manages hardware addresses in a configuration.
 type MACAddresses struct {
-	resource.Collection[MACAddress, MACSpec, MACChanges]
+	resources resource.Collection[MACAddress, MACSpec, MACChanges]
 }
 
 // MACItems manages existing MAC addresses across configurations.
 type MACItems struct {
-	resource.Items[MACAddress, MACChanges]
+	resources resource.Items[MACAddress, MACChanges]
 }
 
 // AddressLinks lists addresses associated with a MAC; it cannot assign or delete them.
-type AddressLinks struct{ resource.List[Address] }
+type AddressLinks struct{ resources resource.List[Address] }
+
+// Page fetches one page within the selected collection scope.
+func (m MACAddresses) Page(ctx context.Context, options bam.ListOptions) (bam.Page[MACAddress], error) {
+	return m.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (m MACAddresses) All(ctx context.Context, options bam.ListOptions) iter.Seq2[MACAddress, error] {
+	return m.resources.All(ctx, options)
+}
+
+// Get reads and validates an existing resource by ID.
+func (m MACAddresses) Get(ctx context.Context, id int64) (MACAddress, error) {
+	return m.resources.Get(ctx, id)
+}
+
+// Document reads the complete representation without field projection.
+func (m MACAddresses) Document(ctx context.Context, id int64) (bam.Document, error) {
+	return m.resources.Document(ctx, id)
+}
+
+// Update applies typed changes to the complete document without retrying writes.
+func (m MACAddresses) Update(ctx context.Context, id int64, changes MACChanges, options ...bam.WriteOption) (MACAddress, error) {
+	return m.resources.Update(ctx, id, changes, options...)
+}
+
+// Delete removes an existing resource without retrying the write.
+func (m MACAddresses) Delete(ctx context.Context, id int64, options ...bam.WriteOption) error {
+	return m.resources.Delete(ctx, id, options...)
+}
+
+// Create submits a typed specification within the selected parent scope.
+func (m MACAddresses) Create(ctx context.Context, spec MACSpec, options ...bam.WriteOption) (MACAddress, error) {
+	return m.resources.Create(ctx, spec, options...)
+}
+
+// Page fetches one page within the selected collection scope.
+func (m MACItems) Page(ctx context.Context, options bam.ListOptions) (bam.Page[MACAddress], error) {
+	return m.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (m MACItems) All(ctx context.Context, options bam.ListOptions) iter.Seq2[MACAddress, error] {
+	return m.resources.All(ctx, options)
+}
+
+// Get reads and validates an existing resource by ID.
+func (m MACItems) Get(ctx context.Context, id int64) (MACAddress, error) {
+	return m.resources.Get(ctx, id)
+}
+
+// Document reads the complete representation without field projection.
+func (m MACItems) Document(ctx context.Context, id int64) (bam.Document, error) {
+	return m.resources.Document(ctx, id)
+}
+
+// Update applies typed changes to the complete document without retrying writes.
+func (m MACItems) Update(ctx context.Context, id int64, changes MACChanges, options ...bam.WriteOption) (MACAddress, error) {
+	return m.resources.Update(ctx, id, changes, options...)
+}
+
+// Delete removes an existing resource without retrying the write.
+func (m MACItems) Delete(ctx context.Context, id int64, options ...bam.WriteOption) error {
+	return m.resources.Delete(ctx, id, options...)
+}
+
+// Page fetches one page within the selected collection scope.
+func (a AddressLinks) Page(ctx context.Context, options bam.ListOptions) (bam.Page[Address], error) {
+	return a.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (a AddressLinks) All(ctx context.Context, options bam.ListOptions) iter.Seq2[Address, error] {
+	return a.resources.All(ctx, options)
+}

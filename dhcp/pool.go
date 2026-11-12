@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"iter"
 	"net/http"
 	"strings"
 
@@ -16,7 +17,9 @@ import (
 // MACPool groups MAC addresses for DHCP policy. New pools disable instant
 // deployment; updates preserve the appliance setting unless explicitly changed.
 type MACPool struct {
-	bam.Resource
+	ID                       int64         `json:"id"`
+	Type                     string        `json:"type"`
+	Name                     string        `json:"name"`
 	Configuration            bam.Reference `json:"configuration"`
 	InstantDeploymentEnabled bool          `json:"instantDeploymentEnabled"`
 }
@@ -60,20 +63,30 @@ func (c MACPoolChanges) Apply(d bam.Document) error {
 
 // MACPools provides MAC pool creation and mutation under a configuration.
 type MACPools struct {
-	resource.Collection[MACPool, MACPoolSpec, MACPoolChanges]
+	resources resource.Collection[MACPool, MACPoolSpec, MACPoolChanges]
+}
+
+// Find requires a unique ordinary MAC pool by name in this configuration.
+func (m MACPools) Find(ctx context.Context, name string) (MACPool, error) {
+	if strings.TrimSpace(name) == "" {
+		return MACPool{}, fmt.Errorf("dhcp: mac pool name is required")
+	}
+	return resource.One(m.All(ctx, bam.ListOptions{Where: bam.Match("name", name), Limit: 2}))
 }
 
 // MACPoolItems provides existing MAC pool operations by global ID.
 type MACPoolItems struct {
-	resource.Items[MACPool, MACPoolChanges]
+	resources resource.Items[MACPool, MACPoolChanges]
 }
 
 // MACMembers exposes relationship operations. Unlink never deletes a MAC resource.
-type MACMembers struct{ resource.List[ipam.MACAddress] }
+type MACMembers struct {
+	resources resource.List[ipam.MACAddress]
+}
 
 // Get reads and validates the resource with the supplied ID.
 func (m MACMembers) Get(ctx context.Context, id int64) (ipam.MACAddress, error) {
-	return resource.CollectionOf(m.List).Get(ctx, id)
+	return resource.CollectionOf(m.resources).Get(ctx, id)
 }
 
 // Link adds a membership relationship without creating the referenced resource.
@@ -81,7 +94,7 @@ func (m MACMembers) Link(ctx context.Context, macID int64, options ...bam.WriteO
 	if macID <= 0 {
 		return ipam.MACAddress{}, fmt.Errorf("dhcp: mac resource id must be positive")
 	}
-	member, err := resource.CollectionOf(m.List).Create(ctx, struct {
+	member, err := resource.CollectionOf(m.resources).Create(ctx, struct {
 		Type string `json:"type"`
 		ID   int64  `json:"id"`
 	}{"MACAddress", macID}, options...)
@@ -98,5 +111,80 @@ func (m MACMembers) Link(ctx context.Context, macID int64, options ...bam.WriteO
 
 // Unlink removes only the membership relationship, preserving the referenced resource.
 func (m MACMembers) Unlink(ctx context.Context, macID int64, options ...bam.WriteOption) error {
-	return resource.CollectionOf(m.List).Delete(ctx, macID, options...)
+	return resource.CollectionOf(m.resources).Delete(ctx, macID, options...)
+}
+
+// Page fetches one page within the selected collection scope.
+func (m MACPools) Page(ctx context.Context, options bam.ListOptions) (bam.Page[MACPool], error) {
+	return m.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (m MACPools) All(ctx context.Context, options bam.ListOptions) iter.Seq2[MACPool, error] {
+	return m.resources.All(ctx, options)
+}
+
+// Get reads and validates an existing resource by ID.
+func (m MACPools) Get(ctx context.Context, id int64) (MACPool, error) {
+	return m.resources.Get(ctx, id)
+}
+
+// Document reads the complete representation without field projection.
+func (m MACPools) Document(ctx context.Context, id int64) (bam.Document, error) {
+	return m.resources.Document(ctx, id)
+}
+
+// Update applies typed changes to the complete document without retrying writes.
+func (m MACPools) Update(ctx context.Context, id int64, changes MACPoolChanges, options ...bam.WriteOption) (MACPool, error) {
+	return m.resources.Update(ctx, id, changes, options...)
+}
+
+// Delete removes an existing resource without retrying the write.
+func (m MACPools) Delete(ctx context.Context, id int64, options ...bam.WriteOption) error {
+	return m.resources.Delete(ctx, id, options...)
+}
+
+// Create submits a typed specification within the selected parent scope.
+func (m MACPools) Create(ctx context.Context, spec MACPoolSpec, options ...bam.WriteOption) (MACPool, error) {
+	return m.resources.Create(ctx, spec, options...)
+}
+
+// Page fetches one page within the selected collection scope.
+func (m MACPoolItems) Page(ctx context.Context, options bam.ListOptions) (bam.Page[MACPool], error) {
+	return m.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (m MACPoolItems) All(ctx context.Context, options bam.ListOptions) iter.Seq2[MACPool, error] {
+	return m.resources.All(ctx, options)
+}
+
+// Get reads and validates an existing resource by ID.
+func (m MACPoolItems) Get(ctx context.Context, id int64) (MACPool, error) {
+	return m.resources.Get(ctx, id)
+}
+
+// Document reads the complete representation without field projection.
+func (m MACPoolItems) Document(ctx context.Context, id int64) (bam.Document, error) {
+	return m.resources.Document(ctx, id)
+}
+
+// Update applies typed changes to the complete document without retrying writes.
+func (m MACPoolItems) Update(ctx context.Context, id int64, changes MACPoolChanges, options ...bam.WriteOption) (MACPool, error) {
+	return m.resources.Update(ctx, id, changes, options...)
+}
+
+// Delete removes an existing resource without retrying the write.
+func (m MACPoolItems) Delete(ctx context.Context, id int64, options ...bam.WriteOption) error {
+	return m.resources.Delete(ctx, id, options...)
+}
+
+// Page fetches one page within the selected collection scope.
+func (m MACMembers) Page(ctx context.Context, options bam.ListOptions) (bam.Page[ipam.MACAddress], error) {
+	return m.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (m MACMembers) All(ctx context.Context, options bam.ListOptions) iter.Seq2[ipam.MACAddress, error] {
+	return m.resources.All(ctx, options)
 }

@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"iter"
 	"strings"
 
 	"github.com/gatework/bam"
@@ -22,7 +23,9 @@ func New(client *bam.Client) *Client { return &Client{client: client} }
 
 // ACL is an ordered DNS client access-control list.
 type ACL struct {
-	bam.Resource
+	ID            int64         `json:"id"`
+	Type          string        `json:"type"`
+	Name          string        `json:"name"`
 	Configuration bam.Reference `json:"configuration"`
 	Predefined    bool          `json:"predefined"`
 	MatchElements []Element     `json:"matchElements"`
@@ -79,11 +82,11 @@ func (c Changes) Apply(d bam.Document) error {
 
 // Lists provides ACL creation and mutation under a configuration.
 type Lists struct {
-	resource.Collection[ACL, Spec, Changes]
+	resources resource.Collection[ACL, Spec, Changes]
 }
 
 // ListItems provides existing ACL operations by global ID.
-type ListItems struct{ resource.Items[ACL, Changes] }
+type ListItems struct{ resources resource.Items[ACL, Changes] }
 
 // Lists selects client access-control lists under the configuration.
 func (c *Client) Lists(configurationID int64) Lists {
@@ -117,4 +120,69 @@ func option(name string, elements []Element) (dns.OptionSpec, error) {
 		return dns.OptionSpec{}, err
 	}
 	return dns.OptionSpec{Name: name, Value: bam.StringsValue(values...)}, nil
+}
+
+// Page fetches one page within the selected collection scope.
+func (l Lists) Page(ctx context.Context, options bam.ListOptions) (bam.Page[ACL], error) {
+	return l.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (l Lists) All(ctx context.Context, options bam.ListOptions) iter.Seq2[ACL, error] {
+	return l.resources.All(ctx, options)
+}
+
+// Get reads and validates an existing resource by ID.
+func (l Lists) Get(ctx context.Context, id int64) (ACL, error) {
+	return l.resources.Get(ctx, id)
+}
+
+// Document reads the complete representation without field projection.
+func (l Lists) Document(ctx context.Context, id int64) (bam.Document, error) {
+	return l.resources.Document(ctx, id)
+}
+
+// Update applies typed changes to the complete document without retrying writes.
+func (l Lists) Update(ctx context.Context, id int64, changes Changes, options ...bam.WriteOption) (ACL, error) {
+	return l.resources.Update(ctx, id, changes, options...)
+}
+
+// Delete removes an existing resource without retrying the write.
+func (l Lists) Delete(ctx context.Context, id int64, options ...bam.WriteOption) error {
+	return l.resources.Delete(ctx, id, options...)
+}
+
+// Create submits a typed specification within the selected parent scope.
+func (l Lists) Create(ctx context.Context, spec Spec, options ...bam.WriteOption) (ACL, error) {
+	return l.resources.Create(ctx, spec, options...)
+}
+
+// Page fetches one page within the selected collection scope.
+func (l ListItems) Page(ctx context.Context, options bam.ListOptions) (bam.Page[ACL], error) {
+	return l.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (l ListItems) All(ctx context.Context, options bam.ListOptions) iter.Seq2[ACL, error] {
+	return l.resources.All(ctx, options)
+}
+
+// Get reads and validates an existing resource by ID.
+func (l ListItems) Get(ctx context.Context, id int64) (ACL, error) {
+	return l.resources.Get(ctx, id)
+}
+
+// Document reads the complete representation without field projection.
+func (l ListItems) Document(ctx context.Context, id int64) (bam.Document, error) {
+	return l.resources.Document(ctx, id)
+}
+
+// Update applies typed changes to the complete document without retrying writes.
+func (l ListItems) Update(ctx context.Context, id int64, changes Changes, options ...bam.WriteOption) (ACL, error) {
+	return l.resources.Update(ctx, id, changes, options...)
+}
+
+// Delete removes an existing resource without retrying the write.
+func (l ListItems) Delete(ctx context.Context, id int64, options ...bam.WriteOption) error {
+	return l.resources.Delete(ctx, id, options...)
 }

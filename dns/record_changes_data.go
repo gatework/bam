@@ -9,8 +9,8 @@ import (
 
 // TXTChanges changes text and common metadata.
 type TXTChanges struct {
-	MetadataChanges
-	Text bam.Field[string]
+	MetadataChanges MetadataChanges
+	Text            bam.Field[string]
 }
 
 // Apply verifies the subtype before changing its fields.
@@ -29,9 +29,9 @@ func (c TXTChanges) Apply(d bam.Document) error {
 
 // HINFOChanges changes host CPU and operating system data.
 type HINFOChanges struct {
-	MetadataChanges
-	CPU bam.Field[string]
-	OS  bam.Field[string]
+	MetadataChanges MetadataChanges
+	CPU             bam.Field[string]
+	OS              bam.Field[string]
 }
 
 // Apply verifies the subtype before changing its fields.
@@ -47,7 +47,7 @@ func (c HINFOChanges) Apply(d bam.Document) error {
 
 // NAPTRChanges changes a naming authority pointer.
 type NAPTRChanges struct {
-	MetadataChanges
+	MetadataChanges   MetadataChanges
 	Order             bam.Field[uint16]
 	Preference        bam.Field[uint16]
 	Service           bam.Field[string]
@@ -76,9 +76,9 @@ func (c NAPTRChanges) Apply(d bam.Document) error {
 
 // GenericChanges changes the DNS type or presentation-format RDATA.
 type GenericChanges struct {
-	MetadataChanges
-	RecordType bam.Field[string]
-	RData      bam.Field[string]
+	MetadataChanges MetadataChanges
+	RecordType      bam.Field[string]
+	RData           bam.Field[string]
 }
 
 // Apply verifies the subtype before changing its fields.
@@ -107,3 +107,11 @@ func nonempty(field bam.Field[string], name string) error {
 	}
 	return nil
 }
+
+func (TXTChanges) recordChanges() {}
+
+func (HINFOChanges) recordChanges() {}
+
+func (NAPTRChanges) recordChanges() {}
+
+func (GenericChanges) recordChanges() {}

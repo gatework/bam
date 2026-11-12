@@ -194,42 +194,73 @@ func TestClientRejectsInvalidSubmissions(t *testing.T) {
 	}
 }
 
-func TestClientReadScopesAndFullDocument(t *testing.T) {
+func TestClient_PageScopes(t *testing.T) {
 	t.Parallel()
-	paths := make(chan string, 5)
+	for _, tt := range []struct {
+		name, path string
+		page       func(*deployment.Client, context.Context) error
+	}{
+		{"global", "/api/v2/deployments", func(c *deployment.Client, ctx context.Context) error {
+			_, err := c.Tasks().Page(ctx, bam.ListOptions{})
+			return err
+		}},
+		{"server", "/api/v2/servers/42/deployments", func(c *deployment.Client, ctx context.Context) error {
+			_, err := c.ForServer(42).Page(ctx, bam.ListOptions{})
+			return err
+		}},
+		{"zone", "/api/v2/zones/43/deployments", func(c *deployment.Client, ctx context.Context) error {
+			_, err := c.ZoneTasks(43).Page(ctx, bam.ListOptions{})
+			return err
+		}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			var requests atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				if r.Method != http.MethodGet || r.URL.Path != tt.path {
+					t.Errorf("request = %s %s, want GET %s", r.Method, r.URL.Path, tt.path)
+				}
+				w.Header().Set("Content-Type", "application/hal+json")
+				_, _ = io.WriteString(w, `{"count":0,"data":[]}`)
+			}))
+			t.Cleanup(server.Close)
+			if err := tt.page(newClient(t, server), t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			if requests.Load() != 1 {
+				t.Fatalf("requests=%d", requests.Load())
+			}
+		})
+	}
+}
+
+func TestClient_GetAndDocument(t *testing.T) {
+	t.Parallel()
+	var requests atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		paths <- r.Method + " " + r.URL.Path
-		w.Header().Set("Content-Type", "application/hal+json")
-		if r.URL.Path == "/api/v2/deployments/77" {
-			_, _ = io.WriteString(w, `{"id":77,"type":"FullDeployment","state":"RUNNING","service":"DNS","opaque":{"integer":9007199254740993}}`)
-			return
+		requests.Add(1)
+		if r.Method != http.MethodGet || r.URL.Path != "/api/v2/deployments/77" {
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
 		}
-		_, _ = io.WriteString(w, `{"count":0,"data":[]}`)
+		w.Header().Set("Content-Type", "application/hal+json")
+		_, _ = io.WriteString(w, `{"id":77,"type":"FullDeployment","state":"RUNNING","service":"DNS","opaque":{"integer":9007199254740993}}`)
 	}))
 	t.Cleanup(server.Close)
-	c := newClient(t, server)
-	for _, tasks := range []deployment.Tasks{c.Tasks(), c.ForServer(42).Tasks, c.ZoneTasks(43)} {
-		if _, err := tasks.Page(context.Background(), bam.ListOptions{}); err != nil {
-			t.Fatal(err)
-		}
+	client := newClient(t, server)
+	task, err := client.ForServer(42).Get(t.Context(), 77)
+	if err != nil || task.ID != 77 {
+		t.Fatalf("task=%+v error=%v", task, err)
 	}
-	if _, err := c.ForServer(42).Get(context.Background(), 77); err != nil {
-		t.Fatal(err)
-	}
-	document, err := c.Tasks().Document(context.Background(), 77)
+	document, err := client.Tasks().Document(t.Context(), 77)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if string(document["opaque"]) != `{"integer":9007199254740993}` {
 		t.Fatalf("full task lost opaque fields: %s", document["opaque"])
 	}
-	for _, expected := range []string{
-		"GET /api/v2/deployments", "GET /api/v2/servers/42/deployments", "GET /api/v2/zones/43/deployments",
-		"GET /api/v2/deployments/77", "GET /api/v2/deployments/77",
-	} {
-		if got := <-paths; got != expected {
-			t.Errorf("request = %s, want %s", got, expected)
-		}
+	if requests.Load() != 2 {
+		t.Fatalf("requests=%d", requests.Load())
 	}
 }
 

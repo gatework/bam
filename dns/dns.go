@@ -72,7 +72,7 @@ func (c *Client) DependentRecords(recordID int64) RecordDependencies {
 // Removing a link is distinct from deleting the record itself.
 func (c *Client) RecordsForAddress(addressID int64) AddressRecords {
 	return AddressRecords{
-		List:   resource.NewList(bam.ChildCollection[Record](c.client, "addresses", addressID, "resourceRecords")),
-		client: c.client, addressID: addressID,
+		resources: resource.NewList(bam.ChildCollection[Record](c.client, "addresses", addressID, "resourceRecords")),
+		client:    c.client, addressID: addressID,
 	}
 }

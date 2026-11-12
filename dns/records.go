@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"iter"
 	"reflect"
 
 	"github.com/gatework/bam"
@@ -13,21 +14,21 @@ import (
 // RecordItems manages existing resource records without exposing creation at
 // an unsupported global scope.
 type RecordItems struct {
-	resource.Reader[Record]
-	client *bam.Client
+	resources resource.Reader[Record]
+	client    *bam.Client
 }
 
 func newRecordItems(client *bam.Client, collection bam.Collection[Record]) RecordItems {
-	return RecordItems{Reader: resource.NewReader(collection), client: client}
+	return RecordItems{resources: resource.NewReader(collection), client: client}
 }
 
 // Records adds type-safe creation within a selected DNS zone.
-type Records struct{ RecordItems }
+type Records struct{ items RecordItems }
 
 // Create creates a supported record subtype. HTTP 202 remains an AcceptedError;
 // the caller must not treat a pending workflow as an existing record.
 func (r Records) Create(ctx context.Context, spec RecordSpec, options ...bam.WriteOption) (Record, error) {
-	created, err := resource.CollectionOf(r.List).Create(ctx, spec, options...)
+	created, err := resource.CollectionOf(r.items.resources.List).Create(ctx, spec, options...)
 	if err != nil {
 		return Record{}, err
 	}
@@ -40,7 +41,7 @@ func (r Records) Create(ctx context.Context, spec RecordSpec, options ...bam.Wri
 // Delete removes a resource record by its global ID. Use AddressRecords.Unlink
 // when only the association with an IP address should be removed.
 func (r RecordItems) Delete(ctx context.Context, id int64, options ...bam.WriteOption) error {
-	return resource.CollectionOf(r.List).Delete(ctx, id, options...)
+	return resource.CollectionOf(r.resources.List).Delete(ctx, id, options...)
 }
 
 // Update reads the complete representation and preserves host-address links
@@ -49,7 +50,7 @@ func (r RecordItems) Update(ctx context.Context, id int64, changes RecordChanges
 	if changes == nil || reflect.ValueOf(changes).Kind() == reflect.Pointer && reflect.ValueOf(changes).IsNil() {
 		return Record{}, fmt.Errorf("dns: record changes cannot be nil")
 	}
-	return resource.CollectionOf(r.List).Update(ctx, id, func(document bam.Document) error {
+	return resource.CollectionOf(r.resources.List).Update(ctx, id, func(document bam.Document) error {
 		var kind RecordKind
 		if err := json.Unmarshal(document["type"], &kind); err != nil {
 			return err
@@ -73,6 +74,66 @@ func (r RecordItems) Update(ctx context.Context, id int64, changes RecordChanges
 		}
 		return r.preserveAddresses(ctx, id, document)
 	}, options...)
+}
+
+// Page fetches one page within the selected collection scope.
+func (r RecordItems) Page(ctx context.Context, options bam.ListOptions) (bam.Page[Record], error) {
+	return r.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (r RecordItems) All(ctx context.Context, options bam.ListOptions) iter.Seq2[Record, error] {
+	return r.resources.All(ctx, options)
+}
+
+// Get reads and validates an existing resource by ID.
+func (r RecordItems) Get(ctx context.Context, id int64) (Record, error) {
+	return r.resources.Get(ctx, id)
+}
+
+// Document reads the complete representation without field projection.
+func (r RecordItems) Document(ctx context.Context, id int64) (bam.Document, error) {
+	return r.resources.Document(ctx, id)
+}
+
+// Page fetches one page within the selected collection scope.
+func (r Records) Page(ctx context.Context, options bam.ListOptions) (bam.Page[Record], error) {
+	return r.items.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (r Records) All(ctx context.Context, options bam.ListOptions) iter.Seq2[Record, error] {
+	return r.items.All(ctx, options)
+}
+
+// Get reads and validates an existing resource by ID.
+func (r Records) Get(ctx context.Context, id int64) (Record, error) {
+	return r.items.Get(ctx, id)
+}
+
+// Document reads the complete representation without field projection.
+func (r Records) Document(ctx context.Context, id int64) (bam.Document, error) {
+	return r.items.Document(ctx, id)
+}
+
+// Update applies typed changes to the complete document without retrying writes.
+func (r Records) Update(ctx context.Context, id int64, changes RecordChanges, options ...bam.WriteOption) (Record, error) {
+	return r.items.Update(ctx, id, changes, options...)
+}
+
+// Delete removes an existing resource without retrying the write.
+func (r Records) Delete(ctx context.Context, id int64, options ...bam.WriteOption) error {
+	return r.items.Delete(ctx, id, options...)
+}
+
+// Search retrieves matching records lazily.
+func (r Records) Search(ctx context.Context, query RecordQuery) iter.Seq2[Record, error] {
+	return r.items.Search(ctx, query)
+}
+
+// Find requires exactly one matching record.
+func (r Records) Find(ctx context.Context, query RecordQuery) (Record, error) {
+	return r.items.Find(ctx, query)
 }
 
 func (r RecordItems) preserveAddresses(ctx context.Context, recordID int64, document bam.Document) error {

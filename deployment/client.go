@@ -3,6 +3,7 @@ package deployment
 import (
 	"context"
 	"fmt"
+	"iter"
 
 	"github.com/gatework/bam"
 	"github.com/gatework/bam/internal/resource"
@@ -20,11 +21,11 @@ func New(c *bam.Client) *Client {
 
 // Tasks provides read-only task access. Submission and completion are separate.
 type Tasks struct {
-	resource.Reader[Task]
+	resources resource.Reader[Task]
 }
 
 func tasks(collection bam.Collection[Task]) Tasks {
-	return Tasks{Reader: resource.NewReader(collection,
+	return Tasks{resources: resource.NewReader(collection,
 		string(KindFull), string(KindDifferential), string(KindQuick),
 		string(KindValidation), string(KindSelective))}
 }
@@ -38,14 +39,14 @@ func (c *Client) Tasks() Tasks {
 // ServerTarget submits service deployments and reads a server's task history.
 // Get and Wait use globally unique task IDs, independently of the server scope.
 type ServerTarget struct {
-	Tasks
+	tasks      Tasks
 	submission submission
 }
 
 // ForServer selects full, differential and validation deployments for a server.
 func (c *Client) ForServer(serverID int64) ServerTarget {
 	s := c.submission("servers", serverID)
-	return ServerTarget{Tasks: tasks(s.collection), submission: s}
+	return ServerTarget{tasks: tasks(s.collection), submission: s}
 }
 
 // QuickTarget submits changes to resource records updated by the current user
@@ -82,4 +83,49 @@ func (c *Client) submission(parent string, id int64) submission {
 		collection: bam.ChildCollection[Task](c.client, parent, id, "deployments"),
 		path:       fmt.Sprintf("/api/v2/%s/%d/deployments", parent, id),
 	}
+}
+
+// Page fetches one page within the selected collection scope.
+func (t Tasks) Page(ctx context.Context, options bam.ListOptions) (bam.Page[Task], error) {
+	return t.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (t Tasks) All(ctx context.Context, options bam.ListOptions) iter.Seq2[Task, error] {
+	return t.resources.All(ctx, options)
+}
+
+// Get reads and validates an existing resource by ID.
+func (t Tasks) Get(ctx context.Context, id int64) (Task, error) {
+	return t.resources.Get(ctx, id)
+}
+
+// Document reads the complete representation without field projection.
+func (t Tasks) Document(ctx context.Context, id int64) (bam.Document, error) {
+	return t.resources.Document(ctx, id)
+}
+
+// Page fetches one page within the selected collection scope.
+func (t ServerTarget) Page(ctx context.Context, options bam.ListOptions) (bam.Page[Task], error) {
+	return t.tasks.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (t ServerTarget) All(ctx context.Context, options bam.ListOptions) iter.Seq2[Task, error] {
+	return t.tasks.All(ctx, options)
+}
+
+// Get reads and validates an existing resource by ID.
+func (t ServerTarget) Get(ctx context.Context, id int64) (Task, error) {
+	return t.tasks.Get(ctx, id)
+}
+
+// Document reads the complete representation without field projection.
+func (t ServerTarget) Document(ctx context.Context, id int64) (bam.Document, error) {
+	return t.tasks.Document(ctx, id)
+}
+
+// Wait observes completion without cancelling the server task.
+func (t ServerTarget) Wait(ctx context.Context, id int64, options WaitOptions) (Task, error) {
+	return t.tasks.Wait(ctx, id, options)
 }

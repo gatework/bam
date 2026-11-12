@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"iter"
 	"net/netip"
 
 	"github.com/gatework/bam"
@@ -48,12 +49,12 @@ func (c ReservationChanges) Apply(d bam.Document) error {
 // Reservations manages DHCPv4 bindings in a network. Global resource IDs are
 // checked for DHCP_RESERVED before reads, updates, or deletion.
 type Reservations struct {
-	resource.List[ipam.Address]
+	resources resource.List[ipam.Address]
 }
 
 // Create creates one typed resource without retrying the mutation.
 func (r Reservations) Create(ctx context.Context, spec ReservationSpec, options ...bam.WriteOption) (ipam.Address, error) {
-	result, err := resource.CollectionOf(r.List).Create(ctx, spec, options...)
+	result, err := resource.CollectionOf(r.resources).Create(ctx, spec, options...)
 	if err != nil {
 		return result, err
 	}
@@ -65,7 +66,7 @@ func (r Reservations) Create(ctx context.Context, spec ReservationSpec, options 
 
 // Get reads and validates the resource with the supplied ID.
 func (r Reservations) Get(ctx context.Context, id int64) (ipam.Address, error) {
-	document, err := resource.CollectionOf(r.List).Document(ctx, id)
+	document, err := resource.CollectionOf(r.resources).Document(ctx, id)
 	if err != nil {
 		return ipam.Address{}, err
 	}
@@ -79,7 +80,7 @@ func (r Reservations) Get(ctx context.Context, id int64) (ipam.Address, error) {
 
 // Update reads the complete resource and applies typed changes without retrying the mutation.
 func (r Reservations) Update(ctx context.Context, id int64, changes ReservationChanges, options ...bam.WriteOption) (ipam.Address, error) {
-	return resource.CollectionOf(r.List).Update(ctx, id, changes.Apply, options...)
+	return resource.CollectionOf(r.resources).Update(ctx, id, changes.Apply, options...)
 }
 
 // Delete deletes the resource without retrying the mutation.
@@ -87,12 +88,12 @@ func (r Reservations) Delete(ctx context.Context, id int64, options ...bam.Write
 	if _, err := r.Get(ctx, id); err != nil {
 		return err
 	}
-	return resource.CollectionOf(r.List).Delete(ctx, id, options...)
+	return resource.CollectionOf(r.resources).Delete(ctx, id, options...)
 }
 
 // AllocateNext creates a binding using one server-side allocation request.
 func (r Reservations) AllocateNext(ctx context.Context, name string, mac ipam.MACReference, options ...bam.WriteOption) (ipam.Address, error) {
-	result, err := resource.CollectionOf(r.List).Create(ctx, ipam.NextAddressSpec{Name: name, State: ipam.StateDHCPReserved, MACAddress: &mac}, options...)
+	result, err := resource.CollectionOf(r.resources).Create(ctx, ipam.NextAddressSpec{Name: name, State: ipam.StateDHCPReserved, MACAddress: &mac}, options...)
 	if err != nil {
 		return result, err
 	}
@@ -110,4 +111,14 @@ func requireReservation(d bam.Document) error {
 		return fmt.Errorf("dhcp: operation requires a dhcpv4 reservation")
 	}
 	return nil
+}
+
+// Page fetches one page within the selected collection scope.
+func (r Reservations) Page(ctx context.Context, options bam.ListOptions) (bam.Page[ipam.Address], error) {
+	return r.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (r Reservations) All(ctx context.Context, options bam.ListOptions) iter.Seq2[ipam.Address, error] {
+	return r.resources.All(ctx, options)
 }

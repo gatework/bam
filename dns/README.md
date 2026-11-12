@@ -6,6 +6,23 @@ selectors expose reads, updates and deletion, without a create operation.
 Zones, Subzones and GlobalZones always select ordinary Zone resources. They
 exclude response-policy zones and BAM's system-managed external-host zones.
 
+Use `LookupZone` when the full zone name is known but its hierarchy is not.
+It starts in the selected view and follows only matching ancestor zones, including
+multi-label zone names. Comparisons ignore case and one trailing root dot.
+Incomplete hierarchy responses and pagination errors are returned, and duplicate
+matches produce `bam.ErrAmbiguous`:
+
+```go
+clientDNS := dns.New(client)
+zone, err := clientDNS.LookupZone(ctx, viewID, "ops.example.test.")
+if err != nil {
+    return err
+}
+host, err := clientDNS.Records(zone.ID).Find(ctx, dns.RecordQuery{
+    Name: "app", Kind: dns.Host,
+})
+```
+
 ```go
 records := dns.New(client).Records(zoneID)
 host, err := records.Create(ctx, dns.HostRecordSpec{
@@ -75,6 +92,22 @@ The library does not submit deployment tasks from record mutations. Existing
 server-side dynamic update settings can still deploy records automatically;
 ZoneSpec and ZoneChanges expose that setting, and WithServerUpdates supplies
 the documented update/delete request header.
+
+## Local deployment options
+
+Build a query with `dns.NewOptionQuery("allow-query", serverID)`, check its error,
+then pass it to `ZoneOptions(zoneID).Find(ctx, query)`. Server scope zero selects
+an all-server override; a positive ID selects one server or server group.
+Use `dns.NewOptionQueryByDefinition(definitionID, serverID)` when the definition
+is known. The constructors enforce selector validity; fields cannot be changed
+after construction, and an unset query is rejected before HTTP.
+The lookup scans complete pages at the selected parent and matches fields locally;
+it does not rely on unverified nested filters or calculate effective inheritance.
+`FindByName` remains available for a unique name across every server scope.
+
+Use the returned ID with `Update`, or `RestoreInheritance` to remove that local
+override. An explicit JSON null value, including `bam.ValueOf(nil)`, is rejected.
+`bam.Set(bam.BoolValue(false))`, zero, and empty lists remain explicit values.
 
 ## Contract evidence
 

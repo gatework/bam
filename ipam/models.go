@@ -8,7 +8,9 @@ import (
 
 // Block is an IPv4 or IPv6 address-space container.
 type Block struct {
-	bam.Resource
+	ID                          int64         `json:"id"`
+	Type                        string        `json:"type"`
+	Name                        string        `json:"name"`
 	Configuration               bam.Reference `json:"configuration"`
 	Range                       string        `json:"range"`
 	PingBeforeAssignmentEnabled *bool         `json:"pingBeforeAssignmentEnabled"`
@@ -18,7 +20,9 @@ type Block struct {
 // Network is an IPv4 or IPv6 network. InheritedFields identifies settings
 // inherited from a parent rather than explicitly configured on this network.
 type Network struct {
-	bam.Resource
+	ID                          int64            `json:"id"`
+	Type                        string           `json:"type"`
+	Name                        string           `json:"name"`
 	Configuration               bam.Reference    `json:"configuration"`
 	Range                       string           `json:"range"`
 	Gateway                     *netip.Addr      `json:"gateway"`
@@ -32,7 +36,9 @@ type Network struct {
 // Address is an allocation and its current MAC and lease information. Lease
 // timestamps retain BAM's wire representation, which varies between versions.
 type Address struct {
-	bam.Resource
+	ID                      int64         `json:"id"`
+	Type                    string        `json:"type"`
+	Name                    string        `json:"name"`
 	Configuration           bam.Reference `json:"configuration"`
 	Address                 netip.Addr    `json:"address"`
 	State                   State         `json:"state"`

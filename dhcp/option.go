@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"iter"
 	"strings"
 
 	"github.com/gatework/bam"
@@ -14,7 +15,9 @@ import (
 // Option is a configured DHCPv4 deployment option. Value preserves the
 // definition-dependent JSON type, including boolean, integer, list, or object.
 type Option struct {
-	bam.Resource
+	ID            int64          `json:"id"`
+	Type          string         `json:"type"`
+	Name          string         `json:"name"`
 	Configuration bam.Reference  `json:"configuration"`
 	ServerScope   *bam.Reference `json:"serverScope"`
 	Code          uint8          `json:"code"`
@@ -24,7 +27,9 @@ type Option struct {
 
 // OptionDefinition identifies the appliance's named option and valid resource scopes.
 type OptionDefinition struct {
-	bam.Resource
+	ID              int64    `json:"id"`
+	Type            string   `json:"type"`
+	Name            string   `json:"name"`
 	AssignableTypes []string `json:"assignableTypes"`
 }
 
@@ -119,8 +124,8 @@ func validateOption(name string, code uint8, definition, server *bam.Reference, 
 	if server != nil && server.ID <= 0 {
 		return fmt.Errorf("dhcp: server scope requires a positive id")
 	}
-	if value.IsZero() {
-		return fmt.Errorf("dhcp: option value is required")
+	if value.IsZero() || value.IsNull() {
+		return fmt.Errorf("dhcp: a non-null option value is required")
 	}
 	return nil
 }
@@ -137,8 +142,8 @@ func (c OptionChanges) Apply(d bam.Document) error {
 	if c.Value.IsNull() {
 		return fmt.Errorf("dhcp: option value cannot be cleared; delete the override to restore inheritance")
 	}
-	if value, ok := c.Value.Value(); ok && value.IsZero() {
-		return fmt.Errorf("dhcp: option value is unset")
+	if value, ok := c.Value.Value(); ok && (value.IsZero() || value.IsNull()) {
+		return fmt.Errorf("dhcp: a non-null option value is required")
 	}
 	if scope, ok := c.ServerScope.Value(); ok && scope.ID <= 0 {
 		return fmt.Errorf("dhcp: server scope requires a positive id")
@@ -155,17 +160,17 @@ func (c OptionChanges) Apply(d bam.Document) error {
 
 // Options provides typed deployment option operations under a parent resource.
 type Options struct {
-	resource.Collection[Option, OptionSpec, OptionChanges]
+	resources resource.Collection[Option, OptionSpec, OptionChanges]
 }
 
 // OptionItems provides operations on existing deployment options by global ID.
 type OptionItems struct {
-	resource.Items[Option, OptionChanges]
+	resources resource.Items[Option, OptionChanges]
 }
 
 // Definitions provides read-only DHCP option definition discovery.
 type Definitions struct {
-	resource.Reader[OptionDefinition]
+	resources resource.Reader[OptionDefinition]
 }
 
 // FindByName requires a unique local option. It reports ambiguous results rather
@@ -187,3 +192,88 @@ func (ClientOptionSpec) optionSpec() {}
 func (ServiceOptionSpec) optionSpec() {}
 
 func (RawOptionSpec) optionSpec() {}
+
+// Page fetches one page within the selected collection scope.
+func (o Options) Page(ctx context.Context, options bam.ListOptions) (bam.Page[Option], error) {
+	return o.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (o Options) All(ctx context.Context, options bam.ListOptions) iter.Seq2[Option, error] {
+	return o.resources.All(ctx, options)
+}
+
+// Get reads and validates an existing resource by ID.
+func (o Options) Get(ctx context.Context, id int64) (Option, error) {
+	return o.resources.Get(ctx, id)
+}
+
+// Document reads the complete representation without field projection.
+func (o Options) Document(ctx context.Context, id int64) (bam.Document, error) {
+	return o.resources.Document(ctx, id)
+}
+
+// Update applies typed changes to the complete document without retrying writes.
+func (o Options) Update(ctx context.Context, id int64, changes OptionChanges, options ...bam.WriteOption) (Option, error) {
+	return o.resources.Update(ctx, id, changes, options...)
+}
+
+// Delete removes an existing resource without retrying the write.
+func (o Options) Delete(ctx context.Context, id int64, options ...bam.WriteOption) error {
+	return o.resources.Delete(ctx, id, options...)
+}
+
+// Create submits a typed specification within the selected parent scope.
+func (o Options) Create(ctx context.Context, spec OptionSpec, options ...bam.WriteOption) (Option, error) {
+	return o.resources.Create(ctx, spec, options...)
+}
+
+// Page fetches one page within the selected collection scope.
+func (o OptionItems) Page(ctx context.Context, options bam.ListOptions) (bam.Page[Option], error) {
+	return o.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (o OptionItems) All(ctx context.Context, options bam.ListOptions) iter.Seq2[Option, error] {
+	return o.resources.All(ctx, options)
+}
+
+// Get reads and validates an existing resource by ID.
+func (o OptionItems) Get(ctx context.Context, id int64) (Option, error) {
+	return o.resources.Get(ctx, id)
+}
+
+// Document reads the complete representation without field projection.
+func (o OptionItems) Document(ctx context.Context, id int64) (bam.Document, error) {
+	return o.resources.Document(ctx, id)
+}
+
+// Update applies typed changes to the complete document without retrying writes.
+func (o OptionItems) Update(ctx context.Context, id int64, changes OptionChanges, options ...bam.WriteOption) (Option, error) {
+	return o.resources.Update(ctx, id, changes, options...)
+}
+
+// Delete removes an existing resource without retrying the write.
+func (o OptionItems) Delete(ctx context.Context, id int64, options ...bam.WriteOption) error {
+	return o.resources.Delete(ctx, id, options...)
+}
+
+// Page fetches one page within the selected collection scope.
+func (d Definitions) Page(ctx context.Context, options bam.ListOptions) (bam.Page[OptionDefinition], error) {
+	return d.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (d Definitions) All(ctx context.Context, options bam.ListOptions) iter.Seq2[OptionDefinition, error] {
+	return d.resources.All(ctx, options)
+}
+
+// Get reads and validates an existing resource by ID.
+func (d Definitions) Get(ctx context.Context, id int64) (OptionDefinition, error) {
+	return d.resources.Get(ctx, id)
+}
+
+// Document reads the complete representation without field projection.
+func (d Definitions) Document(ctx context.Context, id int64) (bam.Document, error) {
+	return d.resources.Document(ctx, id)
+}

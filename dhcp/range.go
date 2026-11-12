@@ -1,9 +1,11 @@
 package dhcp
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"iter"
 	"net/http"
 	"net/netip"
 	"strconv"
@@ -15,7 +17,9 @@ import (
 
 // Range describes a DHCPv4 dynamic allocation range and its exclusions.
 type Range struct {
-	bam.Resource
+	ID                         int64            `json:"id"`
+	Type                       string           `json:"type"`
+	Name                       string           `json:"name"`
 	Configuration              bam.Reference    `json:"configuration"`
 	Range                      string           `json:"range"`
 	SplitAroundStaticAddresses bool             `json:"splitAroundStaticAddresses"`
@@ -188,10 +192,75 @@ func WithOrphanedAddressState(state ipam.State) bam.WriteOption {
 
 // Ranges provides typed DHCPv4 range creation under a network.
 type Ranges struct {
-	resource.Collection[Range, RangeSpec, RangeChanges]
+	resources resource.Collection[Range, RangeSpec, RangeChanges]
 }
 
 // RangeItems provides existing DHCPv4 range operations by global ID.
 type RangeItems struct {
-	resource.Items[Range, RangeChanges]
+	resources resource.Items[Range, RangeChanges]
+}
+
+// Page fetches one page within the selected collection scope.
+func (r Ranges) Page(ctx context.Context, options bam.ListOptions) (bam.Page[Range], error) {
+	return r.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (r Ranges) All(ctx context.Context, options bam.ListOptions) iter.Seq2[Range, error] {
+	return r.resources.All(ctx, options)
+}
+
+// Get reads and validates an existing resource by ID.
+func (r Ranges) Get(ctx context.Context, id int64) (Range, error) {
+	return r.resources.Get(ctx, id)
+}
+
+// Document reads the complete representation without field projection.
+func (r Ranges) Document(ctx context.Context, id int64) (bam.Document, error) {
+	return r.resources.Document(ctx, id)
+}
+
+// Update applies typed changes to the complete document without retrying writes.
+func (r Ranges) Update(ctx context.Context, id int64, changes RangeChanges, options ...bam.WriteOption) (Range, error) {
+	return r.resources.Update(ctx, id, changes, options...)
+}
+
+// Delete removes an existing resource without retrying the write.
+func (r Ranges) Delete(ctx context.Context, id int64, options ...bam.WriteOption) error {
+	return r.resources.Delete(ctx, id, options...)
+}
+
+// Create submits a typed specification within the selected parent scope.
+func (r Ranges) Create(ctx context.Context, spec RangeSpec, options ...bam.WriteOption) (Range, error) {
+	return r.resources.Create(ctx, spec, options...)
+}
+
+// Page fetches one page within the selected collection scope.
+func (r RangeItems) Page(ctx context.Context, options bam.ListOptions) (bam.Page[Range], error) {
+	return r.resources.Page(ctx, options)
+}
+
+// All follows bounded pagination while the caller continues iteration.
+func (r RangeItems) All(ctx context.Context, options bam.ListOptions) iter.Seq2[Range, error] {
+	return r.resources.All(ctx, options)
+}
+
+// Get reads and validates an existing resource by ID.
+func (r RangeItems) Get(ctx context.Context, id int64) (Range, error) {
+	return r.resources.Get(ctx, id)
+}
+
+// Document reads the complete representation without field projection.
+func (r RangeItems) Document(ctx context.Context, id int64) (bam.Document, error) {
+	return r.resources.Document(ctx, id)
+}
+
+// Update applies typed changes to the complete document without retrying writes.
+func (r RangeItems) Update(ctx context.Context, id int64, changes RangeChanges, options ...bam.WriteOption) (Range, error) {
+	return r.resources.Update(ctx, id, changes, options...)
+}
+
+// Delete removes an existing resource without retrying the write.
+func (r RangeItems) Delete(ctx context.Context, id int64, options ...bam.WriteOption) error {
+	return r.resources.Delete(ctx, id, options...)
 }
