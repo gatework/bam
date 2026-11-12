@@ -63,6 +63,14 @@ type MACPools struct {
 	resource.Collection[MACPool, MACPoolSpec, MACPoolChanges]
 }
 
+// Find requires a unique ordinary MAC pool by name in this configuration.
+func (m MACPools) Find(ctx context.Context, name string) (MACPool, error) {
+	if strings.TrimSpace(name) == "" {
+		return MACPool{}, fmt.Errorf("dhcp: mac pool name is required")
+	}
+	return resource.One(m.All(ctx, bam.ListOptions{Where: bam.Match("name", name), Limit: 2}))
+}
+
 // MACPoolItems provides existing MAC pool operations by global ID.
 type MACPoolItems struct {
 	resource.Items[MACPool, MACPoolChanges]

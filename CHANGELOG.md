@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Added
+
+- Find DNS zones by absolute name within a view and local DNS/DHCP options by
+  exact selector and server scope, with immutable constructor-built queries.
+- Find DHCP reservations by IP or MAC, MAC pools by name and DHCP ranges by
+  endpoints or containment. Observe addresses reported as DHCP_LEASED.
+- Add DHCPv4 NTP, domain search, TFTP server and boot filename option constructors.
+- Reject malformed zone names before HTTP and add bounded parser/value fuzz checks.
+
 ### Fixed
 
 - Reject explicit JSON null values before DNS/DHCP option writes, while preserving

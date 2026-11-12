@@ -48,3 +48,17 @@ func One[T any](items iter.Seq2[T, error]) (T, error) {
 	}
 	return result, nil
 }
+
+// OneMatching finds a unique match across every page without hiding iteration
+// failures. It stops once ambiguity is established, as One does.
+func OneMatching[T any](items iter.Seq2[T, error], matches func(T) bool) (T, error) {
+	return One(func(yield func(T, error) bool) {
+		for item, err := range items {
+			if err != nil || matches(item) {
+				if !yield(item, err) || err != nil {
+					return
+				}
+			}
+		}
+	})
+}

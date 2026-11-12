@@ -1,6 +1,7 @@
 # RESTful v2 capability matrix
 
-This matrix describes the v0.2.0 typed domain API, not every BAM endpoint.
+This matrix describes the v0.4.0 typed domain API, not every BAM endpoint.
+Consult `CHANGELOG.md` for release boundaries.
 The baseline is **BAM 9.6, IPv4 first**, with existing IPv6 block/network/address
 basics retained. No live appliance acceptance has been performed.
 
@@ -24,6 +25,11 @@ basics retained. No live appliance acceptance has been performed.
 4. [DNS deployment option reference](https://docs.bluecatnetworks.com/r/Address-Manager-Administration-Guide/Reference-DNS-deployment-options/9.6.0)
    and [RPZ configuration](https://docs.bluecatnetworks.com/r/Address-Manager-Administration-Guide/Adding-Response-Policy-zones-with-BlueCat-Security-Feed/9.6.0)
    supply policy ordering and role/deployment context.
+5. [DHCPv4 client option reference](https://docs.bluecatnetworks.com/r/Address-Manager-Administration-Guide/Reference-DHCPv4-Client-options/9.6.0)
+   supplies common option codes and value meanings, including NTP, ordered domain
+   search lists, TFTP servers and boot filenames. Constructors use the existing
+   deployment option scalar/list JSON representation; appliance acceptance of
+   each definition's value remains a separate check.
 
 This combination does not establish the full 9.6 schema. Obtain the target
 appliance's `/api/openapi.json` as described in
@@ -42,6 +48,7 @@ bounded HAL pagination; item operations address global IDs except explicit links
 | --- | --- | --- | --- |
 | Configuration | `Configurations` | `/configurations` and `/configurations/{id}`; CRUD | Name, description and group changes preserve the other configuration settings. |
 | DNS namespace | `Views`, `Zones`, `Subzones`, global selectors; `ExternalHostsZone` | `/configurations/{id}/views`, `/views/{id}/zones`, `/zones/{id}/zones`; item CRUD; external zone GET only | View/ordinary-zone CRUD with fixed type predicates. Exact read-only external-host-zone lookup avoids treating it as an ordinary mutable zone. |
+| Absolute zone lookup | `LookupZone` | View and zone child collections GET | Resolve nested ordinary zones within a single view. Compare complete absolute names locally, ignoring case and a trailing root dot; follow only matching ancestors and reject broken hierarchy or ambiguity. No unverified global view/name filter is introduced. |
 | DNS records | `Records`, `GlobalRecords` | `/zones/{id}/resourceRecords`; `/resourceRecords/{id}`; CRUD | Host (A/AAAA), Alias (CNAME), MX, TXT, SRV, HINFO, NAPTR, Generic and ExternalHost specifications and changes. Generic records use BAM's `recordType`/`rdata` for PTR, CAA, NS and other generic types. |
 | DNS searches | `Search`, `Find`, `RecordsByIP` | Record collection filters; address-to-record collection GET | Name, absolute name, subtype, generic RR type, configuration, linked record and IP lookup; exact lookup rejects ambiguity. |
 | DNS associations | `Addresses`, `DependentRecords`, `RecordsForAddress` | `/resourceRecords/{id}/addresses`, `/resourceRecords/{id}/dependentRecords`; `/addresses/{id}/resourceRecords[/{recordID}]` | Read complete associations; link existing hosts; unlink without deleting records. Host updates preserve all pages of addresses unless explicitly replaced. |
@@ -54,10 +61,13 @@ bounded HAL pagination; item operations address global IDs except explicit links
 | IP/MAC search | `LookupIP`, `LookupMAC`, `AddressesByMAC`, `NetworksContaining`, `Available` | Configuration/address filters; `/macAddresses/{id}/addresses`; network address collection GET | Scoped exact IP/MAC lookups, containment, state, name and prefix queries. Available means network `UNASSIGNED` IPAM candidates, not DHCP_FREE. Lease timestamps remain observable. |
 | MAC resources | `MACAddresses`, `GlobalMACAddresses` | `/configurations/{id}/macAddresses`, `/macAddresses/{id}`; CRUD | Validated 48-bit MAC values with normalized wire representation, metadata updates, explicit resource deletion. |
 | DHCP reservations | `Reservations` | Network address POST/GET; `/addresses/{id}` GET/PUT/DELETE | Exact or next-free IPv4 DHCP reservation requiring a MAC. Reads/mutations verify `DHCP_RESERVED`; administrative reservations use IPAM. |
+| DHCP discovery | `Reservations.FindByIP`, `FindByMAC`, `Ranges.FindByRange`, `Containing`, `MACPools.Find` | Existing network address/range and configuration MAC-pool collections GET | Exact reservation and pool lookup rejects ambiguity. Range predicates follow the official v1-to-v2 endpoint mapping. MAC matching reads complete paginated reservation resources locally. Containment does not establish availability. |
+| DHCP lease observation | `LeasedAddresses` | `/networks/{id}/addresses` GET with fixed IPv4/`DHCP_LEASED` predicates | Observe BAM address state, MAC, client identifier and lease timestamps without exposing mutation. No live DHCP server query, standalone lease representation or history is inferred. |
 | DHCP ranges | `Ranges`, `GlobalRanges` | `/networks/{id}/ranges`, `/ranges/{id}`; CRUD | `IPv4DHCPRange` endpoints, offset/size or percentage, exclusion ranges, static-address splitting, usage thresholds and resize header. |
 | DHCP pools | `MACPools`, `MACMembers` | `/configurations/{id}/macPools`, `/macPools/{id}`; CRUD; nested `/macAddresses[/{id}]` GET/POST/DELETE | Ordinary MACPool resources, explicit membership linking/unlinking. New pools set instant deployment false; existing settings survive updates. |
 | DHCP options | Scope-specific `Options`, `GlobalOptions`, `OptionDefinitions` | Scoped `/deploymentOptions`; item CRUD; `/deploymentOptionDefinitions` GET | DHCPv4 client/service/raw options. Typed router/DNS/domain/lease-time values; local overrides and server scopes. Scopes: configuration, block, network, range, address, MAC/pool, server/group. |
 | DHCP roles | `BlockRoles`, `NetworkRoles`, `MACPoolRoles`, `RoleInterfaces` | Scoped `/deploymentRoles`; item CRUD; interfaces GET | PRIMARY/NONE, network/published interfaces and failover primary/secondary associations. |
+| Exact local option lookup | DNS/DHCP `Options.Find`, `OptionQuery` | Selected parent's `/deploymentOptions` GET | Match name or definition plus exact server scope; DHCP additionally matches client-option code. Zero server scope means an all-server override. Inspect complete paginated values locally instead of assuming nested-field filters. This does not calculate effective inherited options. |
 | Deployment discovery | `Servers`, `GlobalServers`, `ServerInterfaces`, `GlobalInterfaces` | Configuration/global `/servers`, server/global `/interfaces`; GET | Read-only deployment target and interface discovery. No server lifecycle mutations. |
 | Deployment submission | `ForServer`, `ForZone`, `ForNetwork`, `Selective` | Server/zone/network `/deployments` POST; `/deployments` POST | Full, differential, validation, quick and selective request types. Service/type validation and selective batch/record/dynamic settings. |
 | Deployment observation | `Tasks`, `ForServer`, `ZoneTasks`, `Wait` | `/deployments[/{id}]`, server/zone deployment collection GET | Pending/running/failure/completion/unknown states, warnings, bounded wait and context cancellation. No resubmission or implicit server cancellation. |
@@ -89,6 +99,9 @@ bounded HAL pagination; item operations address global IDs except explicit links
   address write fields are hydrated from the complete association collection.
 - `Set` and `Clear` distinguish explicit values from untouched fields. Nullable
   settings are checked per contract. GET/edit/PUT is not concurrency control.
+- DNS/DHCP option values reject both an unset value and explicit JSON null,
+  including typed nil values. Non-null values such as false, zero and empty
+  arrays retain their meaning; only deletion restores inheritance.
 - Fixed type/state predicates cannot be removed by caller list options. Exact
   lookups return not-found/ambiguous errors and propagate pagination failures.
 - Mutation headers are per request. Failed writes are not automatically retried;
