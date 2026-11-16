@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.4.1
+
+### Fixed
+
+- Reject full-document `Replace` calls containing redacted fields or malformed
+  redaction metadata before sending PUT. Apply the same check before and after
+  an `Update` edit, preserving hidden values from unsafe replacement.
+
+Public API signatures and runtime dependencies are unchanged. Live BAM
+acceptance remains separate.
+
 ## v0.4.0
 
 ### Added

@@ -97,3 +97,47 @@ func TestResourceIdentityMustMatchRequestedID(t *testing.T) {
 		t.Fatal("different document returned as requested document")
 	}
 }
+
+func TestReplaceRejectsRedactedDocuments(t *testing.T) {
+	for _, redacted := range []string{`["secret"]`, `"secret"`, `{}`, `[1]`, `invalid`} {
+		t.Run(redacted, func(t *testing.T) {
+			var calls atomic.Int32
+			client := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+				calls.Add(1)
+				_, _ = fmt.Fprint(w, `{"id":7,"type":"Fixture"}`)
+			})
+			document := bam.Document{
+				"id": json.RawMessage(`7`), "type": json.RawMessage(`"Fixture"`),
+				"_redactedFields": json.RawMessage(redacted),
+			}
+			if _, err := bam.NewCollection[bam.Resource](client, "fixtures").Replace(context.Background(), 7, document); err == nil {
+				t.Error("redacted replacement succeeded")
+			}
+			if calls.Load() != 0 {
+				t.Fatal("redacted replacement reached the server")
+			}
+		})
+	}
+}
+
+func TestReplaceAcceptsDocumentsWithoutRedaction(t *testing.T) {
+	for _, redacted := range []string{"", `[]`, `null`} {
+		t.Run(redacted, func(t *testing.T) {
+			var calls atomic.Int32
+			client := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+				calls.Add(1)
+				_, _ = fmt.Fprint(w, `{"id":7,"type":"Fixture"}`)
+			})
+			document := bam.Document{"id": json.RawMessage(`7`), "type": json.RawMessage(`"Fixture"`)}
+			if redacted != "" {
+				document["_redactedFields"] = json.RawMessage(redacted)
+			}
+			if _, err := bam.NewCollection[bam.Resource](client, "fixtures").Replace(context.Background(), 7, document); err != nil {
+				t.Fatal(err)
+			}
+			if calls.Load() != 1 {
+				t.Fatal("complete replacement was not sent exactly once")
+			}
+		})
+	}
+}

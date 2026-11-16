@@ -7,7 +7,7 @@ REST v1 compatibility layer.
 Install:
 
 ```sh
-go get github.com/gatework/bam@v0.4.0
+go get github.com/gatework/bam@v0.4.1
 ```
 
 Version `v0.4.0` makes handle implementations private and adds immutable option
@@ -100,7 +100,9 @@ for address, err := range ipam.New(client).Addresses(networkID).All(ctx, bam.Lis
 ```
 
 Typed `Update` reads a complete document, applies selected changes and sends PUT.
-It retains unmodeled fields and large integers. A zero `bam.Field` leaves a value
+It retains unmodeled fields and large integers. Both `Update` and low-level
+`Replace` reject documents with redacted fields or malformed redaction metadata
+before sending PUT. A zero `bam.Field` leaves a value
 unchanged; `bam.Set(false)` and `bam.Set(0)` explicitly write zero values.
 `bam.Clear[T]()` writes null only where that resource contract permits it.
 Deleting a local DNS/DHCP option restores inheritance; an empty option value does

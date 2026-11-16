@@ -121,7 +121,8 @@ func (c Collection[T]) Document(ctx context.Context, id int64) (Document, error)
 
 // Replace performs PUT with a full representation, not a partial patch. Obtain
 // the document using Document; incomplete bodies can reset server-side fields.
-// The input is not mutated. HAL links are omitted from the replacement.
+// Redacted resources are rejected. The input is not mutated; HAL links are
+// omitted from the replacement.
 func (c Collection[T]) Replace(ctx context.Context, id int64, document Document, options ...WriteOption) (T, error) {
 	var zero T
 	path, err := c.itemPath(id)
@@ -131,6 +132,9 @@ func (c Collection[T]) Replace(ctx context.Context, id int64, document Document,
 	var identity Resource
 	if document.Decode(&identity) != nil || identity.ID != id || strings.TrimSpace(identity.Type) == "" {
 		return zero, fmt.Errorf("bam: replacement requires a complete resource document with matching id and nonempty type")
+	}
+	if err := checkRedacted(document); err != nil {
+		return zero, err
 	}
 	body := document.Clone()
 	delete(body, "_links")

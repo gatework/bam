@@ -1,6 +1,6 @@
 # RESTful v2 capability matrix
 
-This matrix describes the v0.4.0 typed domain API, not every BAM endpoint.
+This matrix describes the v0.4.1 typed domain API, not every BAM endpoint.
 Consult `CHANGELOG.md` for release boundaries.
 The baseline is **BAM 9.6, IPv4 first**, with existing IPv6 block/network/address
 basics retained. No live appliance acceptance has been performed.
@@ -95,7 +95,8 @@ bounded HAL pagination; item operations address global IDs except explicit links
   contexts, identity, headers, JSON, errors and pagination. No generated SDK or
   per-endpoint HTTP plumbing is added.
 - Update retains unknown JSON fields, false/zero/null and integer precision;
-  redacted representations cannot safely be replaced and are rejected. Host
+  both `Update` and low-level `Replace` reject redacted representations and
+  malformed redaction metadata before PUT. Host
   address write fields are hydrated from the complete association collection.
 - `Set` and `Clear` distinguish explicit values from untouched fields. Nullable
   settings are checked per contract. GET/edit/PUT is not concurrency control.

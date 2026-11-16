@@ -74,6 +74,8 @@ func TestCollectionUpdateRejectsUnsafeReplacement(t *testing.T) {
 		edit       func(bam.Document) error
 	}{
 		{"redacted", `{"id":7,"type":"Fixture","_redactedFields":["name"]}`, func(bam.Document) error { return nil }},
+		{"redaction removed by edit", `{"id":7,"type":"Fixture","_redactedFields":["name"]}`, func(d bam.Document) error { delete(d, "_redactedFields"); return nil }},
+		{"redaction added by edit", `{"id":7,"type":"Fixture"}`, func(d bam.Document) error { return d.Set("_redactedFields", []string{"name"}) }},
 		{"different type", `{"id":7,"type":"Fixture"}`, func(d bam.Document) error { return d.Set("type", "Other") }},
 		{"different id", `{"id":7,"type":"Fixture"}`, func(d bam.Document) error { return d.Set("id", 8) }},
 		{"edit failed", `{"id":7,"type":"Fixture"}`, func(bam.Document) error { return errors.New("invalid edit") }},

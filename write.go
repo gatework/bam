@@ -64,11 +64,8 @@ func (c Collection[T]) Update(ctx context.Context, id int64, edit func(Document)
 	if err != nil {
 		return zero, err
 	}
-	var redacted []string
-	if raw, ok := document["_redactedFields"]; ok {
-		if err := json.Unmarshal(raw, &redacted); err != nil || len(redacted) > 0 {
-			return zero, fmt.Errorf("bam: cannot replace a resource containing redacted fields")
-		}
+	if err := checkRedacted(document); err != nil {
+		return zero, err
 	}
 	originalType := string(document["type"])
 	if err := edit(document); err != nil {
@@ -78,4 +75,14 @@ func (c Collection[T]) Update(ctx context.Context, id int64, edit func(Document)
 		return zero, fmt.Errorf("bam: update cannot change resource type")
 	}
 	return c.Replace(ctx, id, document, options...)
+}
+
+func checkRedacted(document Document) error {
+	var redacted []string
+	if raw, ok := document["_redactedFields"]; ok {
+		if err := json.Unmarshal(raw, &redacted); err != nil || len(redacted) > 0 {
+			return fmt.Errorf("bam: cannot replace a resource containing redacted fields")
+		}
+	}
+	return nil
 }
